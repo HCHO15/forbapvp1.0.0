@@ -83,7 +83,6 @@
       margin: 4px 0;
     }
 
-    /* スライダーラベル */
     .slider-label {
       font-size: 12px;
       margin-top: 4px;
@@ -101,8 +100,6 @@
         <button id="btnColor">現在：赤 → 青に切り替え</button>
         <button id="btnReset">リセット</button>
         <button id="btnSave">画像保存</button>
-
-        <!-- 背景拡大ボタン -->
         <button id="btnZoom">背景の拡大・縮小</button>
 
         <!-- プルダウン（サブ機能） -->
@@ -196,6 +193,9 @@
 
     let basePoint = null;
 
+    /* 背景倍率（1.0 または 1.5） */
+    let bgScaleMultiplier = 1.0;
+
     /* 背景画像（後面） */
     const bgImage = new Image();
     bgImage.src = "S10 map.png";
@@ -208,8 +208,22 @@
     let bg2Loaded = false;
     bgImage2.onload = () => { bg2Loaded = true; redraw(); };
 
-    /* 背景倍率（1.0 または 1.5） */
-    let bgScaleMultiplier = 1.0;
+    /* =========================
+       座標変換（背景倍率に同期）
+    ========================== */
+    function logicalToCanvas(x, y) {
+      return {
+        cx: originX + x * bgScaleMultiplier,
+        cy: originY - y * bgScaleMultiplier
+      };
+    }
+
+    function canvasToLogical(cx, cy) {
+      return {
+        x: (cx - originX) / bgScaleMultiplier,
+        y: (originY - cy) / bgScaleMultiplier
+      };
+    }
         /* =========================
        描画
     ========================== */
@@ -244,33 +258,39 @@
         ctx.restore();
       }
 
-      /* グリッド */
+      /* グリッド（背景倍率に同期） */
       ctx.save();
       ctx.strokeStyle = "#eee";
-      for (let x = originX % 50; x < width; x += 50) {
+
+      const gridStep = 50 * bgScaleMultiplier;
+
+      for (let gx = originX % gridStep; gx < width; gx += gridStep) {
         ctx.beginPath();
-        ctx.moveTo(x, Y_MARGIN);
-        ctx.lineTo(x, height - Y_MARGIN);
-        ctx.stroke();
-      }
-      for (let y = (originY - Y_MARGIN) % 50; y < height - Y_MARGIN; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, height);
         ctx.stroke();
       }
 
-      /* 軸 */
+      for (let gy = originY % gridStep; gy < height; gy += gridStep) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(width, gy);
+        ctx.stroke();
+      }
+
+      /* 軸（背景倍率に同期） */
       ctx.strokeStyle = "#ccc";
+
       ctx.beginPath();
       ctx.moveTo(0, originY);
       ctx.lineTo(width, originY);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(originX, Y_MARGIN);
-      ctx.lineTo(originX, height - Y_MARGIN);
+      ctx.moveTo(originX, 0);
+      ctx.lineTo(originX, height);
       ctx.stroke();
+
       ctx.restore();
     }
 
