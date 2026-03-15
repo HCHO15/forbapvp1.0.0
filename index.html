@@ -120,8 +120,8 @@
       <div id="rangeControls">
         <div>
           半径：
-          <input type="range" id="radiusSlider" min="1" max="1000" value="300">
-          <span id="radiusValue">300</span>
+          <input type="range" id="radiusSlider" min="350" max="1000" step="10" value="700">
+          <span id="radiusValue">700</span>
         </div>
         <div>
           角度：
@@ -438,7 +438,7 @@
     }
 
     /* =========================
-       範囲攻撃：扇形の向き計算
+       扇形の向き計算
     ========================== */
     function getSectorDirection(base, color) {
       const others = color === "red" ? bluePoints : redPoints;
@@ -464,7 +464,7 @@
     }
 
     /* =========================
-       範囲攻撃：描画
+       範囲攻撃：描画（比率変換あり）
     ========================== */
     function drawRangeAttack() {
       if (!basePoint) return;
@@ -473,7 +473,11 @@
       const self = arr.find(p => p.id === basePoint.id);
       if (!self) return;
 
-      const radius = parseFloat(radiusSlider.value);
+      /* ★ 新スライダー値 → 旧スライダー値への比率変換 ★ */
+      const scale = 290 / 700;
+      const radiusRaw = parseFloat(radiusSlider.value);
+      const radius = radiusRaw * scale;
+
       const angleDeg = parseFloat(angleInput.value);
       const angleRad = angleDeg * Math.PI / 180;
 
