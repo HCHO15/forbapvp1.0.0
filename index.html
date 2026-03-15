@@ -122,6 +122,9 @@
       #mainCanvas {
         width: 100%;
         height: auto;
+
+        transform: scale(1.5);
+        transform-origin: top left;
       }
 
       .right-panel {
@@ -257,7 +260,8 @@ const redTableBody = document.getElementById("redTableBody");
 const blueTableBody = document.getElementById("blueTableBody");
 
 const MAX_POINTS = 4;
-const POINT_RADIUS = 15;   // ★ スマホ向けに拡大
+const POINT_RADIUS = 10;   // PC版は従来どおり
+const HIT_RADIUS = 12;     // 当たり判定も元に戻す
 const HIT_RADIUS = 18;
 
 const COLOR_RED = "#e53935";
