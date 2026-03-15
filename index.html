@@ -73,15 +73,6 @@
     th {
       background: #f0f0f0;
     }
-    input.coord-input {
-      width: 60px;
-      font-size: 11px;
-    }
-    .table-title {
-      font-size: 13px;
-      font-weight: bold;
-      margin: 4px 0;
-    }
 
     /* 範囲攻撃 UI */
     #rangeControls {
@@ -89,7 +80,7 @@
       margin-top: 6px;
       font-size: 12px;
     }
-    #rangeControls input {
+    #rangeControls input, #rangeControls select {
       margin-left: 4px;
     }
   </style>
@@ -119,12 +110,23 @@
       <!-- 範囲攻撃 UI -->
       <div id="rangeControls">
         <div>
-          半径：
+          半径(m)：
           <input type="range" id="radiusSlider" min="350" max="1000" step="10" value="700">
           <span id="radiusValue">700</span>
+
+          <!-- ★ 新ショートカットプルダウン -->
+          <select id="shortcutSelect">
+            <option value="manual">手動</option>
+            <option value="tsubaki">ツバキEX</option>
+            <option value="hanako">ハナコ（水着）EX</option>
+            <option value="hoshinoEX">ホシノ（臨戦）EX</option>
+            <option value="hoshinoSS">ホシノ（臨戦）SS</option>
+            <option value="yakumo">ヤクモEX</option>
+          </select>
         </div>
+
         <div>
-          角度：
+          角度(°)：
           <input type="number" id="angleInput" min="1" max="360" value="360">
         </div>
       </div>
@@ -182,6 +184,9 @@
     const radiusSlider = document.getElementById("radiusSlider");
     const radiusValue = document.getElementById("radiusValue");
     const angleInput = document.getElementById("angleInput");
+
+    /* ★ 新ショートカットプルダウン */
+    const shortcutSelect = document.getElementById("shortcutSelect");
 
     const countsDisplay = document.getElementById("countsDisplay");
 
@@ -363,7 +368,6 @@
     function clearCanvas() {
       ctx.clearRect(0, 0, width, height);
 
-      /* 背景画像（後面） */
       if (bgLoaded) {
         const scale = Math.min(width / 3567, height / 2400) * 1.5;
         const w = 3567 * scale;
@@ -377,7 +381,6 @@
         ctx.restore();
       }
 
-      /* 背景画像（前面：遮蔽） */
       if (bg2Loaded) {
         const scale = Math.min(width / 3567, height / 2400) * 1.5;
         const w = 3567 * scale;
@@ -444,7 +447,7 @@
       const others = color === "red" ? bluePoints : redPoints;
 
       if (others.length === 0) {
-        return (base.x <= 0) ? 0 : Math.PI;  // 右向き or 左向き
+        return (base.x <= 0) ? 0 : Math.PI;
       }
 
       let nearest = null;
@@ -464,7 +467,7 @@
     }
 
     /* =========================
-       範囲攻撃：描画（比率変換あり）
+       範囲攻撃（比率変換あり）
     ========================== */
     function drawRangeAttack() {
       if (!basePoint) return;
@@ -473,7 +476,6 @@
       const self = arr.find(p => p.id === basePoint.id);
       if (!self) return;
 
-      /* ★ 新スライダー値 → 旧スライダー値への比率変換 ★ */
       const scale = 290 / 700;
       const radiusRaw = parseFloat(radiusSlider.value);
       const radius = radiusRaw * scale;
@@ -531,6 +533,39 @@
       bluePoints.forEach(drawPoint);
       applySubFunction();
     }
+
+    /* =========================
+       ショートカット処理
+    ========================== */
+    shortcutSelect.addEventListener("change", () => {
+      const v = shortcutSelect.value;
+
+      if (v === "manual") return;
+
+      if (v === "tsubaki") {
+        radiusSlider.value = 700;
+        angleInput.value = 360;
+      }
+      if (v === "hanako") {
+        radiusSlider.value = 850;
+        angleInput.value = 60;
+      }
+      if (v === "hoshinoEX") {
+        radiusSlider.value = 300;
+        angleInput.value = 360;
+      }
+      if (v === "hoshinoSS") {
+        radiusSlider.value = 850;
+        angleInput.value = 30;
+      }
+      if (v === "yakumo") {
+        radiusSlider.value = 510;
+        angleInput.value = 360;
+      }
+
+      radiusValue.textContent = radiusSlider.value;
+      redraw();
+    });
 
     /* =========================
        イベント
@@ -639,10 +674,12 @@
     /* 範囲攻撃 UI */
     radiusSlider.addEventListener("input", () => {
       radiusValue.textContent = radiusSlider.value;
+      shortcutSelect.value = "manual";
       redraw();
     });
 
     angleInput.addEventListener("input", () => {
+      shortcutSelect.value = "manual";
       redraw();
     });
 
