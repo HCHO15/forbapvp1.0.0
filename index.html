@@ -8,56 +8,57 @@
       font-family: system-ui, sans-serif;
       margin: 0;
       padding: 16px;
-      box-sizing: border-box;
       background: #f5f5f5;
     }
     h1 {
       margin-top: 0;
       font-size: 20px;
     }
+
     .container {
       display: flex;
       gap: 16px;
-      align-items: flex-start;
     }
+
     .left-panel {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
+      width: 820px;
     }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     #canvasWrapper {
       background: #fff;
       padding: 8px;
       border-radius: 4px;
       box-shadow: 0 0 4px rgba(0,0,0,0.1);
     }
+
     #mainCanvas {
       border: 1px solid #ccc;
       background: #ffffff;
       cursor: crosshair;
     }
-    .controls {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-    button {
-      padding: 6px 10px;
-      font-size: 12px;
-      cursor: pointer;
-    }
+
     .counts {
-      margin-top: 4px;
       font-size: 13px;
+      margin-left: 4px;
     }
+
     .right-panel {
       background: #fff;
       padding: 8px;
       border-radius: 4px;
       box-shadow: 0 0 4px rgba(0,0,0,0.1);
-      min-width: 220px;
+      min-width: 260px;
     }
+
     table {
       border-collapse: collapse;
       width: 100%;
@@ -73,9 +74,8 @@
       background: #f0f0f0;
     }
     input.coord-input {
-      width: 70px;
+      width: 60px;
       font-size: 11px;
-      box-sizing: border-box;
     }
     .table-title {
       font-size: 13px;
@@ -86,89 +86,111 @@
 </head>
 <body>
   <h1>シッテムの箱</h1>
+
   <div class="container">
     <div class="left-panel">
-      <div id="canvasWrapper">
-        <canvas id="mainCanvas" width="800" height="600"></canvas>
-      </div>
-      <div class="counts" id="countsDisplay">
-        赤点：0/4　青点：0/4
-      </div>
+
+      <!-- ボタン -->
       <div class="controls">
         <button id="btnColor">現在：赤 → 青に切り替え</button>
         <button id="btnReset">リセット</button>
         <button id="btnSave">画像保存</button>
         <button id="btnMode">攻撃SP</button>
       </div>
+
+      <!-- 点カウント -->
+      <div class="counts" id="countsDisplay">
+        赤点：0/4　青点：0/4
+      </div>
+
+      <!-- キャンバス -->
+      <div id="canvasWrapper">
+        <canvas id="mainCanvas" width="800" height="520"></canvas>
+      </div>
+
     </div>
+
+    <!-- 座標表 -->
     <div class="right-panel">
       <div class="table-title">赤点座標</div>
       <table>
         <thead>
-          <tr><th>#</th><th>x</th><th>y</th></tr>
+          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
         </thead>
-        <tbody id="redTableBody">
-          <!-- rows inserted by JS -->
-        </tbody>
+        <tbody id="redTableBody"></tbody>
       </table>
+
       <div class="table-title">青点座標</div>
       <table>
         <thead>
-          <tr><th>#</th><th>x</th><th>y</th></tr>
+          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
         </thead>
-        <tbody id="blueTableBody">
-          <!-- rows inserted by JS -->
-        </tbody>
+        <tbody id="blueTableBody"></tbody>
       </table>
     </div>
   </div>
 
   <script>
-    // ====== 基本設定 ======
-    const canvas = document.getElementById('mainCanvas');
-    const ctx = canvas.getContext('2d');
+    /* =========================
+       基本設定
+    ========================== */
+    const canvas = document.getElementById("mainCanvas");
+    const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
+
+    /* Y軸の上下を短くするためのマージン */
+    const Y_MARGIN = 40;
+
     const originX = width / 2;
     const originY = height / 2;
 
-    const btnColor = document.getElementById('btnColor');
-    const btnReset = document.getElementById('btnReset');
-    const btnSave = document.getElementById('btnSave');
-    const btnMode = document.getElementById('btnMode');
-    const countsDisplay = document.getElementById('countsDisplay');
-    const redTableBody = document.getElementById('redTableBody');
-    const blueTableBody = document.getElementById('blueTableBody');
+    const btnColor = document.getElementById("btnColor");
+    const btnReset = document.getElementById("btnReset");
+    const btnSave = document.getElementById("btnSave");
+    const btnMode = document.getElementById("btnMode");
+    const countsDisplay = document.getElementById("countsDisplay");
+
+    const redTableBody = document.getElementById("redTableBody");
+    const blueTableBody = document.getElementById("blueTableBody");
 
     const MAX_POINTS = 4;
     const POINT_RADIUS = 10;
     const HIT_RADIUS = 12;
 
-    const COLOR_RED = '#e53935';
-    const COLOR_BLUE = '#1e88e5';
-    const COLOR_RED_LIGHT = 'rgba(229,57,53,0.35)';
-    const COLOR_BLUE_LIGHT = 'rgba(30,136,229,0.35)';
+    const COLOR_RED = "#e53935";
+    const COLOR_BLUE = "#1e88e5";
+    const COLOR_RED_LIGHT = "rgba(229,57,53,0.35)";
+    const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.35)";
 
-    // modeIndex: 0=攻撃SP,1=バフSP,2=攻撃ST,3=バフST
-    const modes = ['攻撃SP', 'バフSP', '攻撃ST', 'バフST'];
+    const modes = ["攻撃SP", "バフSP", "攻撃ST", "バフST"];
     let modeIndex = 0;
 
-    let currentColor = 'red'; // 'red' or 'blue'
+    let currentColor = "red";
 
-    // 点データ: {id:1-4, color:'red'|'blue', x:論理座標, y:論理座標}
     let redPoints = [];
     let bluePoints = [];
 
-    // ドラッグ関連
     let draggingPoint = null;
     let dragOffsetX = 0;
     let dragOffsetY = 0;
     let isDragging = false;
 
-    // ST系モードの基準点
-    let basePoint = null; // {color, id}
+    /* 基準点（ST系） */
+    let basePoint = null;
 
-    // ====== 座標変換 ======
+    /* 背景画像 */
+    const bgImage = new Image();
+    bgImage.src = "S10 map.png";
+    let bgLoaded = false;
+    bgImage.onload = () => {
+      bgLoaded = true;
+      redraw();
+    };
+
+    /* =========================
+       座標変換
+    ========================== */
     function logicalToCanvas(x, y) {
       return {
         cx: originX + x,
@@ -183,29 +205,44 @@
       };
     }
 
-    // ====== テーブル初期化 ======
+    /* =========================
+       テーブル生成
+    ========================== */
     function initTables() {
       for (let i = 1; i <= MAX_POINTS; i++) {
-        const redRow = document.createElement('tr');
+        const redRow = document.createElement("tr");
         redRow.innerHTML = `
           <td>${i}</td>
           <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="x"></td>
           <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="y"></td>
+          <td><input type="radio" name="redBase" data-color="red" data-id="${i}"></td>
         `;
         redTableBody.appendChild(redRow);
 
-        const blueRow = document.createElement('tr');
+        const blueRow = document.createElement("tr");
         blueRow.innerHTML = `
           <td>${i}</td>
           <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="x"></td>
           <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="y"></td>
+          <td><input type="radio" name="blueBase" data-color="blue" data-id="${i}"></td>
         `;
         blueTableBody.appendChild(blueRow);
       }
 
-      document.querySelectorAll('.coord-input').forEach(input => {
-        input.addEventListener('change', onCoordInputChange);
+      document.querySelectorAll(".coord-input").forEach(input => {
+        input.addEventListener("change", onCoordInputChange);
       });
+
+      document.querySelectorAll("input[type=radio]").forEach(r => {
+        r.addEventListener("change", onBaseSelect);
+      });
+    }
+
+    function onBaseSelect(e) {
+      const color = e.target.dataset.color;
+      const id = parseInt(e.target.dataset.id, 10);
+      basePoint = { color, id };
+      redraw();
     }
 
     function onCoordInputChange(e) {
@@ -214,50 +251,43 @@
       const id = parseInt(input.dataset.id, 10);
       const axis = input.dataset.axis;
       const value = parseFloat(input.value);
-
       if (isNaN(value)) return;
 
-      let arr = color === 'red' ? redPoints : bluePoints;
-      let point = arr.find(p => p.id === id);
+      let arr = color === "red" ? redPoints : bluePoints;
+      let p = arr.find(pt => pt.id === id);
 
-      if (!point) {
+      if (!p) {
         if (arr.length >= MAX_POINTS) {
-          // これ以上追加できない
           updateTablesFromPoints();
           return;
         }
-        point = { id, color, x: 0, y: 0 };
-        arr.push(point);
+        p = { id, color, x: 0, y: 0 };
+        arr.push(p);
       }
 
-      point[axis] = value;
+      p[axis] = value;
       redraw();
       updateTablesFromPoints();
       updateCounts();
     }
 
     function updateTablesFromPoints() {
-      // いったん全クリア
-      document.querySelectorAll('.coord-input').forEach(input => {
-        input.value = '';
-      });
+      document.querySelectorAll(".coord-input").forEach(i => i.value = "");
 
       redPoints.forEach(p => {
-        const xInput = document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="x"]`);
-        const yInput = document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="y"]`);
-        if (xInput) xInput.value = Math.round(p.x);
-        if (yInput) yInput.value = Math.round(p.y);
+        document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+        document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
       });
 
       bluePoints.forEach(p => {
-        const xInput = document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="x"]`);
-        const yInput = document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="y"]`);
-        if (xInput) xInput.value = Math.round(p.x);
-        if (yInput) yInput.value = Math.round(p.y);
+        document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+        document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
       });
     }
 
-    // ====== 点操作 ======
+    /* =========================
+       点操作
+    ========================== */
     function getNextId(arr) {
       for (let i = 1; i <= MAX_POINTS; i++) {
         if (!arr.find(p => p.id === i)) return i;
@@ -266,21 +296,17 @@
     }
 
     function addPoint(color, x, y) {
-      const arr = color === 'red' ? redPoints : bluePoints;
+      const arr = color === "red" ? redPoints : bluePoints;
       if (arr.length >= MAX_POINTS) return;
       const id = getNextId(arr);
-      if (id == null) return;
       arr.push({ id, color, x, y });
     }
 
-    function removePoint(point) {
-      if (!point) return;
-      if (point.color === 'red') {
-        redPoints = redPoints.filter(p => p !== point);
-      } else {
-        bluePoints = bluePoints.filter(p => p !== point);
-      }
-      if (basePoint && basePoint.color === point.color && basePoint.id === point.id) {
+    function removePoint(p) {
+      if (p.color === "red") redPoints = redPoints.filter(x => x !== p);
+      else bluePoints = bluePoints.filter(x => x !== p);
+
+      if (basePoint && basePoint.color === p.color && basePoint.id === p.id) {
         basePoint = null;
       }
     }
@@ -292,41 +318,60 @@
         const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
         const dx = cx - px;
         const dy = cy - py;
-        if (Math.sqrt(dx * dx + dy * dy) <= HIT_RADIUS) {
-          return p;
-        }
+        if (Math.sqrt(dx*dx + dy*dy) <= HIT_RADIUS) return p;
       }
       return null;
     }
 
-    // ====== 描画 ======
+    /* =========================
+       描画（ここから後半へ続く）
+    ========================== */
+        /* =========================
+       描画
+    ========================== */
     function clearCanvas() {
       ctx.clearRect(0, 0, width, height);
-      // 軽いグリッドと原点
+
+      /* 背景画像 */
+      if (bgLoaded) {
+        const scale = Math.min(width / 3567, height / 2400);
+        const w = 3567 * scale;
+        const h = 2400 * scale;
+        const x = (width - w) / 2;
+        const y = (height - h) / 2;
+
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.drawImage(bgImage, x, y, w, h);
+        ctx.restore();
+      }
+
+      /* グリッド */
       ctx.save();
-      ctx.strokeStyle = '#eee';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#eee";
       for (let x = originX % 50; x < width; x += 50) {
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
+        ctx.moveTo(x, Y_MARGIN);
+        ctx.lineTo(x, height - Y_MARGIN);
         ctx.stroke();
       }
-      for (let y = originY % 50; y < height; y += 50) {
+      for (let y = (originY - Y_MARGIN) % 50; y < height - Y_MARGIN; y += 50) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
       }
-      // 軸
-      ctx.strokeStyle = '#ccc';
+
+      /* 軸 */
+      ctx.strokeStyle = "#ccc";
       ctx.beginPath();
       ctx.moveTo(0, originY);
       ctx.lineTo(width, originY);
       ctx.stroke();
+
       ctx.beginPath();
-      ctx.moveTo(originX, 0);
-      ctx.lineTo(originX, height);
+      ctx.moveTo(originX, Y_MARGIN);
+      ctx.lineTo(originX, height - Y_MARGIN);
       ctx.stroke();
       ctx.restore();
     }
@@ -335,49 +380,46 @@
       const { cx, cy } = logicalToCanvas(p.x, p.y);
       ctx.save();
       ctx.beginPath();
-      ctx.fillStyle = p.color === 'red' ? COLOR_RED : COLOR_BLUE;
+      ctx.fillStyle = p.color === "red" ? COLOR_RED : COLOR_BLUE;
       ctx.arc(cx, cy, POINT_RADIUS, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px system-ui';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(p.id.toString(), cx, cy);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.id, cx, cy);
       ctx.restore();
     }
 
-    function computeCentroid(points) {
-      if (!points.length) return null;
+    function computeCentroid(arr) {
+      if (!arr.length) return null;
       let sx = 0, sy = 0;
-      points.forEach(p => {
-        sx += p.x;
-        sy += p.y;
-      });
-      return { x: sx / points.length, y: sy / points.length };
+      arr.forEach(p => { sx += p.x; sy += p.y; });
+      return { x: sx / arr.length, y: sy / arr.length };
     }
 
-    function drawCentroid(centroid, color) {
-      if (!centroid) return;
-      const { cx, cy } = logicalToCanvas(centroid.x, centroid.y);
+    function drawCentroid(c, color) {
+      if (!c) return;
+      const { cx, cy } = logicalToCanvas(c.x, c.y);
       ctx.save();
-      ctx.strokeStyle = color === 'red' ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
+      ctx.strokeStyle = color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
       ctx.lineWidth = 2;
-      const size = 10;
+      const s = 10;
       ctx.beginPath();
-      ctx.moveTo(cx - size, cy - size);
-      ctx.lineTo(cx + size, cy + size);
-      ctx.moveTo(cx - size, cy + size);
-      ctx.lineTo(cx + size, cy - size);
+      ctx.moveTo(cx - s, cy - s);
+      ctx.lineTo(cx + s, cy + s);
+      ctx.moveTo(cx - s, cy + s);
+      ctx.lineTo(cx + s, cy - s);
       ctx.stroke();
       ctx.restore();
     }
 
-    function findNearestPoint(from, candidates) {
-      if (!candidates.length) return null;
+    function findNearestPoint(from, arr) {
+      if (!arr.length) return null;
       let best = null;
       let bestDist = Infinity;
-      candidates.forEach(p => {
+      arr.forEach(p => {
         const dx = p.x - from.x;
         const dy = p.y - from.y;
         const d2 = dx * dx + dy * dy;
@@ -393,7 +435,7 @@
       if (!p) return;
       const { cx, cy } = logicalToCanvas(p.x, p.y);
       ctx.save();
-      ctx.strokeStyle = color === 'red' ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
+      ctx.strokeStyle = color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(cx, cy, POINT_RADIUS + 6, 0, Math.PI * 2);
@@ -402,54 +444,45 @@
     }
 
     function applySubFunction() {
-      const redCentroid = computeCentroid(redPoints);
-      const blueCentroid = computeCentroid(bluePoints);
+      const redC = computeCentroid(redPoints);
+      const blueC = computeCentroid(bluePoints);
 
-      // 常に重心のバツ印
-      drawCentroid(redCentroid, 'red');
-      drawCentroid(blueCentroid, 'blue');
+      drawCentroid(redC, "red");
+      drawCentroid(blueC, "blue");
 
       if (modeIndex === 0) {
-        // 攻撃SP: 赤重心→最も近い青点（赤丸）、青重心→最も近い赤点（青丸）
-        if (redCentroid && bluePoints.length) {
-          const targetBlue = findNearestPoint(redCentroid, bluePoints);
-          drawCircleAroundPoint(targetBlue, 'red');
+        if (redC && bluePoints.length) {
+          drawCircleAroundPoint(findNearestPoint(redC, bluePoints), "red");
         }
-        if (blueCentroid && redPoints.length) {
-          const targetRed = findNearestPoint(blueCentroid, redPoints);
-          drawCircleAroundPoint(targetRed, 'blue');
+        if (blueC && redPoints.length) {
+          drawCircleAroundPoint(findNearestPoint(blueC, redPoints), "blue");
         }
-      } else if (modeIndex === 1) {
-        // バフSP: 赤重心→最も近い赤点（赤丸）、青重心→最も近い青点（青丸）
-        if (redCentroid && redPoints.length) {
-          const targetRed = findNearestPoint(redCentroid, redPoints);
-          drawCircleAroundPoint(targetRed, 'red');
+      }
+
+      if (modeIndex === 1) {
+        if (redC && redPoints.length) {
+          drawCircleAroundPoint(findNearestPoint(redC, redPoints), "red");
         }
-        if (blueCentroid && bluePoints.length) {
-          const targetBlue = findNearestPoint(blueCentroid, bluePoints);
-          drawCircleAroundPoint(targetBlue, 'blue');
+        if (blueC && bluePoints.length) {
+          drawCircleAroundPoint(findNearestPoint(blueC, bluePoints), "blue");
         }
-      } else if (modeIndex === 2) {
-        // 攻撃ST: 基準点→最も近い異色の点を基準点の色で囲む
-        if (basePoint) {
-          const arrSelf = basePoint.color === 'red' ? redPoints : bluePoints;
-          const arrOther = basePoint.color === 'red' ? bluePoints : redPoints;
-          const self = arrSelf.find(p => p.id === basePoint.id);
-          if (self && arrOther.length) {
-            const target = findNearestPoint(self, arrOther);
-            drawCircleAroundPoint(target, basePoint.color);
-          }
+      }
+
+      if (modeIndex === 2 && basePoint) {
+        const arrSelf = basePoint.color === "red" ? redPoints : bluePoints;
+        const arrOther = basePoint.color === "red" ? bluePoints : redPoints;
+        const self = arrSelf.find(p => p.id === basePoint.id);
+        if (self && arrOther.length) {
+          drawCircleAroundPoint(findNearestPoint(self, arrOther), basePoint.color);
         }
-      } else if (modeIndex === 3) {
-        // バフST: 基準点→最も近い同色の点を基準点の色で囲む
-        if (basePoint) {
-          const arrSelf = basePoint.color === 'red' ? redPoints : bluePoints;
-          const self = arrSelf.find(p => p.id === basePoint.id);
-          if (self && arrSelf.length > 1) {
-            const candidates = arrSelf.filter(p => p !== self);
-            const target = findNearestPoint(self, candidates);
-            drawCircleAroundPoint(target, basePoint.color);
-          }
+      }
+
+      if (modeIndex === 3 && basePoint) {
+        const arrSelf = basePoint.color === "red" ? redPoints : bluePoints;
+        const self = arrSelf.find(p => p.id === basePoint.id);
+        if (self && arrSelf.length > 1) {
+          const candidates = arrSelf.filter(p => p !== self);
+          drawCircleAroundPoint(findNearestPoint(self, candidates), basePoint.color);
         }
       }
     }
@@ -462,45 +495,39 @@
     }
 
     function updateCounts() {
-      countsDisplay.textContent = `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
+      countsDisplay.textContent =
+        `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
     }
 
-    // ====== イベント ======
-    canvas.addEventListener('contextmenu', e => {
-      e.preventDefault();
-    });
+    /* =========================
+       イベント
+    ========================== */
+    canvas.addEventListener("contextmenu", e => e.preventDefault());
 
-    canvas.addEventListener('mousedown', e => {
+    canvas.addEventListener("mousedown", e => {
       const rect = canvas.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
 
       if (e.button === 0) {
-        // 左クリック
         const hit = findPointAtCanvasPos(cx, cy);
 
         if (hit) {
-          // STモードなら基準点設定
-          if (modeIndex === 2 || modeIndex === 3) {
-            basePoint = { color: hit.color, id: hit.id };
-            redraw();
-          }
-          // ドラッグ開始
           const logical = canvasToLogical(cx, cy);
           dragOffsetX = hit.x - logical.x;
           dragOffsetY = hit.y - logical.y;
           draggingPoint = hit;
           isDragging = true;
         } else {
-          // 新規プロット
           const logical = canvasToLogical(cx, cy);
           addPoint(currentColor, logical.x, logical.y);
           redraw();
           updateTablesFromPoints();
           updateCounts();
         }
-      } else if (e.button === 2) {
-        // 右クリックで削除
+      }
+
+      if (e.button === 2) {
         const hit = findPointAtCanvasPos(cx, cy);
         if (hit) {
           removePoint(hit);
@@ -511,7 +538,7 @@
       }
     });
 
-    canvas.addEventListener('mousemove', e => {
+    canvas.addEventListener("mousemove", e => {
       if (!isDragging || !draggingPoint) return;
       const rect = canvas.getBoundingClientRect();
       const cx = e.clientX - rect.left;
@@ -523,28 +550,30 @@
       updateTablesFromPoints();
     });
 
-    canvas.addEventListener('mouseup', () => {
+    canvas.addEventListener("mouseup", () => {
       isDragging = false;
       draggingPoint = null;
     });
 
-    canvas.addEventListener('mouseleave', () => {
+    canvas.addEventListener("mouseleave", () => {
       isDragging = false;
       draggingPoint = null;
     });
 
-    // ====== ボタン ======
-    btnColor.addEventListener('click', () => {
-      if (currentColor === 'red') {
-        currentColor = 'blue';
-        btnColor.textContent = '現在：青 → 赤に切り替え';
+    /* =========================
+       ボタン
+    ========================== */
+    btnColor.addEventListener("click", () => {
+      if (currentColor === "red") {
+        currentColor = "blue";
+        btnColor.textContent = "現在：青 → 赤に切り替え";
       } else {
-        currentColor = 'red';
-        btnColor.textContent = '現在：赤 → 青に切り替え';
+        currentColor = "red";
+        btnColor.textContent = "現在：赤 → 青に切り替え";
       }
     });
 
-    btnReset.addEventListener('click', () => {
+    btnReset.addEventListener("click", () => {
       redPoints = [];
       bluePoints = [];
       basePoint = null;
@@ -553,21 +582,23 @@
       updateCounts();
     });
 
-    btnSave.addEventListener('click', () => {
-      const link = document.createElement('a');
-      link.download = 'shittomu_no_hako.png';
-      link.href = canvas.toDataURL('image/png');
+    btnSave.addEventListener("click", () => {
+      const link = document.createElement("a");
+      link.download = "shittomu_no_hako.png";
+      link.href = canvas.toDataURL("image/png");
       link.click();
     });
 
-    btnMode.addEventListener('click', () => {
+    btnMode.addEventListener("click", () => {
       modeIndex = (modeIndex + 1) % modes.length;
       btnMode.textContent = modes[modeIndex];
-      basePoint = null; // モード切替時に基準点リセット
+      basePoint = null;
       redraw();
     });
 
-    // ====== 初期化 ======
+    /* =========================
+       初期化
+    ========================== */
     initTables();
     redraw();
     updateCounts();
