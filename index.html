@@ -82,6 +82,16 @@
       font-weight: bold;
       margin: 4px 0;
     }
+
+    /* 範囲攻撃 UI */
+    #rangeControls {
+      display: none;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    #rangeControls input {
+      margin-left: 4px;
+    }
   </style>
 </head>
 <body>
@@ -102,7 +112,21 @@
           <option value="1">バフSP</option>
           <option value="2">攻撃ST</option>
           <option value="3">バフST</option>
+          <option value="4">範囲攻撃</option>
         </select>
+      </div>
+
+      <!-- 範囲攻撃 UI -->
+      <div id="rangeControls">
+        <div>
+          半径：
+          <input type="range" id="radiusSlider" min="1" max="1000" value="300">
+          <span id="radiusValue">300</span>
+        </div>
+        <div>
+          角度：
+          <input type="number" id="angleInput" min="1" max="360" value="360">
+        </div>
       </div>
 
       <!-- 点カウント -->
@@ -146,9 +170,6 @@
     const width = canvas.width;
     const height = canvas.height;
 
-    /* Y軸の上下を短くするためのマージン */
-    const Y_MARGIN = 40;
-
     const originX = width / 2;
     const originY = height / 2;
 
@@ -156,6 +177,12 @@
     const btnReset = document.getElementById("btnReset");
     const btnSave = document.getElementById("btnSave");
     const modeSelect = document.getElementById("modeSelect");
+
+    const rangeControls = document.getElementById("rangeControls");
+    const radiusSlider = document.getElementById("radiusSlider");
+    const radiusValue = document.getElementById("radiusValue");
+    const angleInput = document.getElementById("angleInput");
+
     const countsDisplay = document.getElementById("countsDisplay");
 
     const redTableBody = document.getElementById("redTableBody");
@@ -170,9 +197,7 @@
     const COLOR_RED_LIGHT = "rgba(229,57,53,0.35)";
     const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.35)";
 
-    const modes = ["攻撃SP", "バフSP", "攻撃ST", "バフST"];
     let modeIndex = 0;
-
     let currentColor = "red";
 
     let redPoints = [];
@@ -183,26 +208,19 @@
     let dragOffsetY = 0;
     let isDragging = false;
 
-    /* 基準点（ST系） */
     let basePoint = null;
 
     /* 背景画像（後面） */
     const bgImage = new Image();
     bgImage.src = "S10 map.png";
     let bgLoaded = false;
-    bgImage.onload = () => {
-      bgLoaded = true;
-      redraw();
-    };
+    bgImage.onload = () => { bgLoaded = true; redraw(); };
 
     /* 背景画像（前面：遮蔽） */
     const bgImage2 = new Image();
     bgImage2.src = "S10 map 遮蔽.png";
     let bg2Loaded = false;
-    bgImage2.onload = () => {
-      bg2Loaded = true;
-      redraw();
-    };
+    bgImage2.onload = () => { bg2Loaded = true; redraw(); };
 
     /* =========================
        座標変換
@@ -221,7 +239,7 @@
       };
     }
 
-    /* =========================
+        /* =========================
        テーブル生成
     ========================== */
     function initTables() {
@@ -340,10 +358,7 @@
     }
 
     /* =========================
-       描画（後半へ続く）
-    ========================== */
-        /* =========================
-       描画
+       背景描画
     ========================== */
     function clearCanvas() {
       ctx.clearRect(0, 0, width, height);
@@ -375,37 +390,11 @@
         ctx.drawImage(bgImage2, x, y, w, h);
         ctx.restore();
       }
-
-      /* グリッド */
-      ctx.save();
-      ctx.strokeStyle = "#eee";
-      for (let x = originX % 50; x < width; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, Y_MARGIN);
-        ctx.lineTo(x, height - Y_MARGIN);
-        ctx.stroke();
-      }
-      for (let y = (originY - Y_MARGIN) % 50; y < height - Y_MARGIN; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-
-      /* 軸 */
-      ctx.strokeStyle = "#ccc";
-      ctx.beginPath();
-      ctx.moveTo(0, originY);
-      ctx.lineTo(width, originY);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(originX, Y_MARGIN);
-      ctx.lineTo(originX, height - Y_MARGIN);
-      ctx.stroke();
-      ctx.restore();
     }
 
+    /* =========================
+       点描画
+    ========================== */
     function drawPoint(p) {
       const { cx, cy } = logicalToCanvas(p.x, p.y);
       ctx.save();
@@ -422,6 +411,9 @@
       ctx.restore();
     }
 
+    /* =========================
+       重心
+    ========================== */
     function computeCentroid(arr) {
       if (!arr.length) return null;
       let sx = 0, sy = 0;
@@ -445,34 +437,75 @@
       ctx.restore();
     }
 
-    function findNearestPoint(from, arr) {
-      if (!arr.length) return null;
-      let best = null;
+    /* =========================
+       範囲攻撃：扇形の向き計算
+    ========================== */
+    function getSectorDirection(base, color) {
+      const others = color === "red" ? bluePoints : redPoints;
+
+      if (others.length === 0) {
+        return (base.x <= 0) ? 0 : Math.PI;  // 右向き or 左向き
+      }
+
+      let nearest = null;
       let bestDist = Infinity;
-      arr.forEach(p => {
-        const dx = p.x - from.x;
-        const dy = p.y - from.y;
+
+      others.forEach(p => {
+        const dx = p.x - base.x;
+        const dy = p.y - base.y;
         const d2 = dx * dx + dy * dy;
         if (d2 < bestDist) {
           bestDist = d2;
-          best = p;
+          nearest = p;
         }
       });
-      return best;
+
+      return Math.atan2(-(nearest.y - base.y), nearest.x - base.x);
     }
 
-    function drawCircleAroundPoint(p, color) {
-      if (!p) return;
-      const { cx, cy } = logicalToCanvas(p.x, p.y);
+    /* =========================
+       範囲攻撃：描画
+    ========================== */
+    function drawRangeAttack() {
+      if (!basePoint) return;
+
+      const arr = basePoint.color === "red" ? redPoints : bluePoints;
+      const self = arr.find(p => p.id === basePoint.id);
+      if (!self) return;
+
+      const radius = parseFloat(radiusSlider.value);
+      const angleDeg = parseFloat(angleInput.value);
+      const angleRad = angleDeg * Math.PI / 180;
+
+      const { cx, cy } = logicalToCanvas(self.x, self.y);
+
+      const color = basePoint.color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
+
       ctx.save();
-      ctx.strokeStyle = color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(cx, cy, POINT_RADIUS + 6, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.fillStyle = color;
+
+      if (angleDeg >= 360) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const centerAngle = getSectorDirection(self, basePoint.color);
+        const start = centerAngle - angleRad / 2;
+        const end = centerAngle + angleRad / 2;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, start, end);
+        ctx.closePath();
+        ctx.fill();
+      }
+
       ctx.restore();
     }
 
+    /* =========================
+       サブ機能適用
+    ========================== */
     function applySubFunction() {
       const redC = computeCentroid(redPoints);
       const blueC = computeCentroid(bluePoints);
@@ -480,53 +513,19 @@
       drawCentroid(redC, "red");
       drawCentroid(blueC, "blue");
 
-      if (modeIndex === 0) {
-        if (redC && bluePoints.length) {
-          drawCircleAroundPoint(findNearestPoint(redC, bluePoints), "red");
-        }
-        if (blueC && redPoints.length) {
-          drawCircleAroundPoint(findNearestPoint(blueC, redPoints), "blue");
-        }
-      }
-
-      if (modeIndex === 1) {
-        if (redC && redPoints.length) {
-          drawCircleAroundPoint(findNearestPoint(redC, redPoints), "red");
-        }
-        if (blueC && bluePoints.length) {
-          drawCircleAroundPoint(findNearestPoint(blueC, bluePoints), "blue");
-        }
-      }
-
-      if (modeIndex === 2 && basePoint) {
-        const arrSelf = basePoint.color === "red" ? redPoints : bluePoints;
-        const arrOther = basePoint.color === "red" ? bluePoints : redPoints;
-        const self = arrSelf.find(p => p.id === basePoint.id);
-        if (self && arrOther.length) {
-          drawCircleAroundPoint(findNearestPoint(self, arrOther), basePoint.color);
-        }
-      }
-
-      if (modeIndex === 3 && basePoint) {
-        const arrSelf = basePoint.color === "red" ? redPoints : bluePoints;
-        const self = arrSelf.find(p => p.id === basePoint.id);
-        if (self && arrSelf.length > 1) {
-          const candidates = arrSelf.filter(p => p !== self);
-          drawCircleAroundPoint(findNearestPoint(self, candidates), basePoint.color);
-        }
+      if (modeIndex === 4) {
+        drawRangeAttack();
       }
     }
 
+    /* =========================
+       再描画
+    ========================== */
     function redraw() {
       clearCanvas();
       redPoints.forEach(drawPoint);
       bluePoints.forEach(drawPoint);
       applySubFunction();
-    }
-
-    function updateCounts() {
-      countsDisplay.textContent =
-        `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
     }
 
     /* =========================
@@ -619,10 +618,27 @@
       link.click();
     });
 
-    /* プルダウンでモード切替 */
+    /* サブ機能切り替え */
     modeSelect.addEventListener("change", () => {
       modeIndex = parseInt(modeSelect.value, 10);
       basePoint = null;
+
+      if (modeIndex === 4) {
+        rangeControls.style.display = "block";
+      } else {
+        rangeControls.style.display = "none";
+      }
+
+      redraw();
+    });
+
+    /* 範囲攻撃 UI */
+    radiusSlider.addEventListener("input", () => {
+      radiusValue.textContent = radiusSlider.value;
+      redraw();
+    });
+
+    angleInput.addEventListener("input", () => {
       redraw();
     });
 
