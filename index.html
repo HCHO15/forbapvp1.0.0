@@ -33,11 +33,13 @@
       flex-wrap: wrap;
     }
 
+    /* ★ キャンバスの初期位置を下げる */
     #canvasWrapper {
       background: #fff;
       padding: 8px;
       border-radius: 4px;
       box-shadow: 0 0 4px rgba(0,0,0,0.1);
+      margin-top: 40px; /* ← 追加した行 */
     }
 
     #mainCanvas {
@@ -185,7 +187,6 @@
     const radiusValue = document.getElementById("radiusValue");
     const angleInput = document.getElementById("angleInput");
 
-    /* ★ 新ショートカットプルダウン */
     const shortcutSelect = document.getElementById("shortcutSelect");
 
     const countsDisplay = document.getElementById("countsDisplay");
@@ -215,7 +216,9 @@
 
     let basePoint = null;
 
-    /* 背景画像（後面） */
+        /* =========================
+       背景画像（後面）
+    ========================== */
     const bgImage = new Image();
     bgImage.src = "S10 map.png";
     let bgLoaded = false;
@@ -244,7 +247,7 @@
       };
     }
 
-        /* =========================
+    /* =========================
        テーブル生成
     ========================== */
     function initTables() {
@@ -657,7 +660,9 @@
       link.click();
     });
 
-    /* サブ機能切り替え */
+    /* =========================
+       サブ機能切り替え
+    ========================== */
     modeSelect.addEventListener("change", () => {
       modeIndex = parseInt(modeSelect.value, 10);
       basePoint = null;
@@ -671,7 +676,9 @@
       redraw();
     });
 
-    /* 範囲攻撃 UI */
+    /* =========================
+       範囲攻撃 UI
+    ========================== */
     radiusSlider.addEventListener("input", () => {
       radiusValue.textContent = radiusSlider.value;
       shortcutSelect.value = "manual";
