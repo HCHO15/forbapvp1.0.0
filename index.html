@@ -350,7 +350,7 @@
 
       /* 背景画像（後面） */
       if (bgLoaded) {
-        const scale = Math.min(width / 3567, height / 2400);
+        const scale = Math.min(width / 3567, height / 2400) * 1.5;
         const w = 3567 * scale;
         const h = 2400 * scale;
         const x = (width - w) / 2;
@@ -364,7 +364,7 @@
 
       /* 背景画像（前面：遮蔽） */
       if (bg2Loaded) {
-        const scale = Math.min(width / 3567, height / 2400);
+        const scale = Math.min(width / 3567, height / 2400) * 1.5;
         const w = 3567 * scale;
         const h = 2400 * scale;
         const x = (width - w) / 2;
