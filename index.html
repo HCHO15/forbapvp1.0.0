@@ -225,17 +225,10 @@ bgImage2.onload = () => { bg2Loaded = true; redraw(); };
    座標変換
 ========================= */
 function logicalToCanvas(x, y) {
-  return {
-    cx: originX + x,
-    cy: originY - y
-  };
+  return { cx: originX + x, cy: originY - y };
 }
-
 function canvasToLogical(cx, cy) {
-  return {
-    x: cx - originX,
-    y: originY - cy
-  };
+  return { x: cx - originX, y: originY - cy };
 }
 
 /* =========================
@@ -262,13 +255,13 @@ function initTables() {
     blueTableBody.appendChild(blueRow);
   }
 
-  document.querySelectorAll(".coord-input").forEach(input => {
-    input.addEventListener("change", onCoordInputChange);
-  });
+  document.querySelectorAll(".coord-input").forEach(input =>
+    input.addEventListener("change", onCoordInputChange)
+  );
 
-  document.querySelectorAll("input[type=radio]").forEach(r => {
-    r.addEventListener("change", onBaseSelect);
-  });
+  document.querySelectorAll("input[type=radio]").forEach(r =>
+    r.addEventListener("change", onBaseSelect)
+  );
 }
 
 function onBaseSelect(e) {
@@ -446,7 +439,7 @@ function drawPoint(p) {
 }
 
 /* =========================
-   距離計算ユーティリティ
+   距離計算
 ========================= */
 function dist2(a, b) {
   const dx = a.x - b.x;
@@ -630,7 +623,27 @@ function redraw() {
 }
 
 /* =========================
-   イベント
+   ダブルクリックで基準点選択
+========================= */
+canvas.addEventListener("dblclick", e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+
+  const hit = findPointAtCanvasPos(cx, cy);
+  if (!hit) return;
+
+  basePoint = { color: hit.color, id: hit.id };
+
+  const selector = `input[type=radio][data-color="${hit.color}"][data-id="${hit.id}"]`;
+  const radio = document.querySelector(selector);
+  if (radio) radio.checked = true;
+
+  redraw();
+});
+
+/* =========================
+   クリック（追加・ドラッグ）
 ========================= */
 canvas.addEventListener("contextmenu", e => e.preventDefault());
 
@@ -642,11 +655,6 @@ canvas.addEventListener("mousedown", e => {
   const hit = findPointAtCanvasPos(cx, cy);
 
   if (e.button === 0) {
-    if (hit && (modeIndex === 2 || modeIndex === 3)) {
-      basePoint = { color: hit.color, id: hit.id };
-      redraw();
-      return;
-    }
 
     if (hit) {
       const logical = canvasToLogical(cx, cy);
@@ -697,7 +705,9 @@ canvas.addEventListener("mouseleave", () => {
   draggingPoint = null;
 });
 
-/* ボタン */
+/* =========================
+   ボタン
+========================= */
 btnColor.addEventListener("click", () => {
   if (currentColor === "red") {
     currentColor = "blue";
@@ -724,13 +734,11 @@ btnSave.addEventListener("click", () => {
   link.click();
 });
 
-/* サブ機能切り替え */
+/* =========================
+   サブ機能切り替え
+========================= */
 modeSelect.addEventListener("change", () => {
   modeIndex = parseInt(modeSelect.value, 10);
-
-  if (modeIndex === 2 || modeIndex === 3) {
-    basePoint = null;
-  }
 
   if (modeIndex === 4) {
     rangeControls.style.display = "block";
@@ -741,7 +749,9 @@ modeSelect.addEventListener("change", () => {
   redraw();
 });
 
-/* 範囲攻撃 UI */
+/* =========================
+   範囲攻撃 UI
+========================= */
 radiusSlider.addEventListener("input", () => {
   radiusValue.textContent = radiusSlider.value;
   shortcutSelect.value = "manual";
@@ -781,17 +791,22 @@ shortcutSelect.addEventListener("change", () => {
   redraw();
 });
 
-/* カウント表示 */
+/* =========================
+   カウント表示
+========================= */
 function updateCounts() {
   countsDisplay.textContent =
     `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
 }
 
-/* 初期化 */
+/* =========================
+   初期化
+========================= */
 initTables();
 redraw();
 updateTablesFromPoints();
 updateCounts();
+
 </script>
 </body>
 </html>
