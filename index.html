@@ -31,6 +31,21 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* ★ 新しい範囲攻撃 UI の配置 */
+    .range-row-top {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .range-row-bottom {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
     }
 
     #canvasWrapper {
@@ -49,6 +64,7 @@
     .counts {
       font-size: 13px;
       margin-left: 4px;
+      display: inline-block;
     }
 
     .right-panel {
@@ -74,14 +90,20 @@
       background: #f0f0f0;
     }
 
-    /* 範囲攻撃 UI */
+    input.coord-input {
+      width: 60px;
+      font-size: 11px;
+    }
+
+    .table-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin: 4px 0;
+    }
+
+    /* 範囲攻撃 UI（表示切替用） */
     #rangeControls {
       display: none;
-      margin-top: 6px;
-      font-size: 12px;
-    }
-    #rangeControls input, #rangeControls select {
-      margin-left: 4px;
     }
   </style>
 </head>
@@ -91,13 +113,13 @@
   <div class="container">
     <div class="left-panel">
 
-      <!-- ボタン -->
+      <!-- ボタン行 -->
       <div class="controls">
         <button id="btnColor">現在：赤 → 青に切り替え</button>
         <button id="btnReset">リセット</button>
         <button id="btnSave">画像保存</button>
 
-        <!-- プルダウン（サブ機能） -->
+        <!-- サブ機能プルダウン -->
         <select id="modeSelect">
           <option value="0">攻撃SP</option>
           <option value="1">バフSP</option>
@@ -105,16 +127,15 @@
           <option value="3">バフST</option>
           <option value="4">範囲攻撃</option>
         </select>
-      </div>
 
-      <!-- 範囲攻撃 UI -->
-      <div id="rangeControls">
-        <div>
-          半径(m)：
-          <input type="range" id="radiusSlider" min="350" max="1000" step="10" value="700">
-          <span id="radiusValue">700</span>
+        <!-- ★ 範囲攻撃 UI（上段：半径 + ショートカット） -->
+        <div id="rangeControls" class="range-row-top">
+          <div>
+            半径(m)：
+            <input type="range" id="radiusSlider" min="350" max="1000" step="10" value="700">
+            <span id="radiusValue">700</span>
+          </div>
 
-          <!-- ★ 新ショートカットプルダウン -->
           <select id="shortcutSelect">
             <option value="manual">手動</option>
             <option value="tsubaki">ツバキEX</option>
@@ -124,16 +145,19 @@
             <option value="yakumo">ヤクモEX</option>
           </select>
         </div>
+      </div>
 
+      <!-- ★ 範囲攻撃 UI（下段：角度） -->
+      <div class="range-row-bottom" id="rangeControlsBottom" style="display:none;">
         <div>
           角度(°)：
           <input type="number" id="angleInput" min="1" max="360" value="360">
         </div>
-      </div>
 
-      <!-- 点カウント -->
-      <div class="counts" id="countsDisplay">
-        赤点：0/4　青点：0/4
+        <!-- プロットカウント表示の右に置く -->
+        <div class="counts" id="countsDisplay">
+          赤点：0/4　青点：0/4
+        </div>
       </div>
 
       <!-- キャンバス -->
@@ -181,11 +205,12 @@
     const modeSelect = document.getElementById("modeSelect");
 
     const rangeControls = document.getElementById("rangeControls");
+    const rangeControlsBottom = document.getElementById("rangeControlsBottom");
+
     const radiusSlider = document.getElementById("radiusSlider");
     const radiusValue = document.getElementById("radiusValue");
     const angleInput = document.getElementById("angleInput");
 
-    /* ★ 新ショートカットプルダウン */
     const shortcutSelect = document.getElementById("shortcutSelect");
 
     const countsDisplay = document.getElementById("countsDisplay");
@@ -214,35 +239,6 @@
     let isDragging = false;
 
     let basePoint = null;
-
-    /* 背景画像（後面） */
-    const bgImage = new Image();
-    bgImage.src = "S10 map.png";
-    let bgLoaded = false;
-    bgImage.onload = () => { bgLoaded = true; redraw(); };
-
-    /* 背景画像（前面：遮蔽） */
-    const bgImage2 = new Image();
-    bgImage2.src = "S10 map 遮蔽.png";
-    let bg2Loaded = false;
-    bgImage2.onload = () => { bg2Loaded = true; redraw(); };
-
-    /* =========================
-       座標変換
-    ========================== */
-    function logicalToCanvas(x, y) {
-      return {
-        cx: originX + x,
-        cy: originY - y
-      };
-    }
-
-    function canvasToLogical(cx, cy) {
-      return {
-        x: cx - originX,
-        y: originY - cy
-      };
-    }
 
         /* =========================
        テーブル生成
@@ -657,21 +653,27 @@
       link.click();
     });
 
-    /* サブ機能切り替え */
+    /* =========================
+       サブ機能切り替え
+    ========================== */
     modeSelect.addEventListener("change", () => {
       modeIndex = parseInt(modeSelect.value, 10);
       basePoint = null;
 
       if (modeIndex === 4) {
-        rangeControls.style.display = "block";
+        rangeControls.style.display = "flex";
+        rangeControlsBottom.style.display = "flex";
       } else {
         rangeControls.style.display = "none";
+        rangeControlsBottom.style.display = "none";
       }
 
       redraw();
     });
 
-    /* 範囲攻撃 UI */
+    /* =========================
+       範囲攻撃 UI
+    ========================== */
     radiusSlider.addEventListener("input", () => {
       radiusValue.textContent = radiusSlider.value;
       shortcutSelect.value = "manual";
