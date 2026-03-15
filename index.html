@@ -623,6 +623,117 @@
       draggingPoint = null;
     });
 
+    /* スマホ用変数 */
+let touchStartTime = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+let lastTapTime = 0;
+let lastTapX = 0;
+let lastTapY = 0;
+let longPressTimer = null;
+let isLongPress = false;
+
+/* touchstart（タップ／長押し判定開始） */
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const cx = t.clientX - rect.left;
+  const cy = t.clientY - rect.top;
+
+  touchStartTime = Date.now();
+  touchStartX = cx;
+  touchStartY = cy;
+  isLongPress = false;
+
+  longPressTimer = setTimeout(() => {
+    const hit = findPointAtCanvasPos(cx, cy);
+    if (hit) {
+      draggingPoint = hit;
+      isLongPress = true;
+    }
+  }, 500);
+});
+
+/* touchmove（長押し成立後の移動） */
+canvas.addEventListener("touchmove", (e) => {
+  if (!isLongPress || !draggingPoint) return;
+
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const cx = t.clientX - rect.left;
+  const cy = t.clientY - rect.top;
+
+  const logical = canvasToLogical(cx, cy);
+  draggingPoint.x = logical.x;
+  draggingPoint.y = logical.y;
+
+  redraw();
+  updateTablesFromPoints();
+});
+
+/* touchend（タップ／ダブルタップ／長押し終了の判定） */
+canvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+
+  clearTimeout(longPressTimer);
+
+  const now = Date.now();
+  const dt = now - touchStartTime;
+
+  // 長押しで移動していた場合
+  if (isLongPress && draggingPoint) {
+    draggingPoint = null;
+    isLongPress = false;
+    return;
+  }
+
+  // タップ位置
+  const rect = canvas.getBoundingClientRect();
+  const cx = touchStartX;
+  const cy = touchStartY;
+
+  // ダブルタップ判定
+  const tapInterval = now - lastTapTime;
+  const dx = Math.abs(cx - lastTapX);
+  const dy = Math.abs(cy - lastTapY);
+
+  if (tapInterval < 300 && dx < 20 && dy < 20) {
+    // ダブルタップ → 削除
+    const hit = findPointAtCanvasPos(cx, cy);
+    if (hit) {
+      removePoint(hit);
+      redraw();
+      updateTablesFromPoints();
+      updateCounts();
+    }
+
+    lastTapTime = 0; // リセット
+    return;
+  }
+
+  // シングルタップ（点追加）
+  if (dt < 200) {
+    const logical = canvasToLogical(cx, cy);
+    addPoint(currentColor, logical.x, logical.y);
+    redraw();
+    updateTablesFromPoints();
+    updateCounts();
+  }
+
+  // タップ情報更新（次のダブルタップ判定用）
+  lastTapTime = now;
+  lastTapX = cx;
+  lastTapY = cy;
+});
+
+/* touchcancel（指が画面外に出たなど） */
+canvas.addEventListener("touchcancel", () => {
+  clearTimeout(longPressTimer);
+  isLongPress = false;
+  draggingPoint = null;
+});
+
     canvas.addEventListener("mouseleave", () => {
       isDragging = false;
       draggingPoint = null;
