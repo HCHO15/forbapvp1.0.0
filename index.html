@@ -2,19 +2,23 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>シッテムの箱 - forbapvp1.0.0</title>
+  <title>シッテムの箱 - forbapvp1.1.0</title>
+
   <style>
     body {
       font-family: system-ui, sans-serif;
       margin: 0;
-      padding: 16px;
+      padding: 12px;
       background: #f5f5f5;
     }
+
     h1 {
       margin-top: 0;
       font-size: 20px;
+      text-align: center;
     }
 
+    /* PC レイアウト（横並び） */
     .container {
       display: flex;
       gap: 16px;
@@ -33,6 +37,14 @@
       flex-wrap: wrap;
     }
 
+    button {
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #fff;
+    }
+
     #canvasWrapper {
       background: #fff;
       padding: 8px;
@@ -44,6 +56,8 @@
       border: 1px solid #ccc;
       background: #ffffff;
       cursor: crosshair;
+      width: 800px;
+      height: 520px;
     }
 
     .counts {
@@ -65,26 +79,77 @@
       margin-bottom: 8px;
       font-size: 12px;
     }
+
     th, td {
       border: 1px solid #ccc;
       padding: 2px 4px;
       text-align: center;
     }
+
     th {
       background: #f0f0f0;
     }
 
-    /* 範囲攻撃 UI */
+    /* 範囲攻撃 UI（折りたたみ） */
     #rangeControls {
       display: none;
       margin-top: 6px;
       font-size: 12px;
+      background: #fff;
+      padding: 8px;
+      border-radius: 6px;
+      box-shadow: 0 0 4px rgba(0,0,0,0.1);
     }
-    #rangeControls input, #rangeControls select {
+
+    #rangeControls input,
+    #rangeControls select {
       margin-left: 4px;
+    }
+
+    /* ▼▼▼ スマホ最適化 ▼▼▼ */
+    @media (max-width: 600px) {
+
+      .container {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+      }
+
+      #mainCanvas {
+        width: 100%;
+        height: auto;
+      }
+
+      .right-panel {
+        width: 100%;
+        margin-top: 12px;
+      }
+
+      /* 座標表をアコーディオン化 */
+      .table-title {
+        font-size: 16px;
+        padding: 10px;
+        background: #e0e0e0;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+
+      .table-content {
+        display: none;
+      }
+
+      .table-content.open {
+        display: block;
+      }
     }
   </style>
 </head>
+
 <body>
   <h1>シッテムの箱</h1>
 
@@ -97,7 +162,6 @@
         <button id="btnReset">リセット</button>
         <button id="btnSave">画像保存</button>
 
-        <!-- プルダウン（サブ機能） -->
         <select id="modeSelect">
           <option value="0">攻撃SP</option>
           <option value="1">バフSP</option>
@@ -107,14 +171,13 @@
         </select>
       </div>
 
-      <!-- 範囲攻撃 UI -->
+      <!-- 範囲攻撃 UI（折りたたみ） -->
       <div id="rangeControls">
         <div>
           半径(m)：
           <input type="range" id="radiusSlider" min="350" max="1000" step="10" value="700">
           <span id="radiusValue">700</span>
 
-          <!-- ★ 新ショートカットプルダウン -->
           <select id="shortcutSelect">
             <option value="manual">手動</option>
             <option value="tsubaki">ツバキEX</option>
@@ -131,499 +194,468 @@
         </div>
       </div>
 
-      <!-- 点カウント -->
       <div class="counts" id="countsDisplay">
         赤点：0/4　青点：0/4
       </div>
 
-      <!-- キャンバス -->
       <div id="canvasWrapper">
         <canvas id="mainCanvas" width="800" height="520"></canvas>
       </div>
-
     </div>
 
-    <!-- 座標表 -->
+    <!-- 座標表（スマホではアコーディオン） -->
     <div class="right-panel">
-      <div class="table-title">赤点座標</div>
-      <table>
-        <thead>
-          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
-        </thead>
-        <tbody id="redTableBody"></tbody>
-      </table>
 
-      <div class="table-title">青点座標</div>
-      <table>
-        <thead>
-          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
-        </thead>
-        <tbody id="blueTableBody"></tbody>
-      </table>
+      <div class="table-title" data-target="redTable">赤点座標</div>
+      <div class="table-content" id="redTable">
+        <table>
+          <thead>
+            <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
+          </thead>
+          <tbody id="redTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="table-title" data-target="blueTable">青点座標</div>
+      <div class="table-content" id="blueTable">
+        <table>
+          <thead>
+            <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
+          </thead>
+          <tbody id="blueTableBody"></tbody>
+        </table>
+      </div>
+
     </div>
   </div>
 
   <script>
-    /* =========================
-       基本設定
-    ========================== */
-    const canvas = document.getElementById("mainCanvas");
-    const ctx = canvas.getContext("2d");
-    const width = canvas.width;
-    const height = canvas.height;
+/* =========================
+   基本設定
+========================= */
+const canvas = document.getElementById("mainCanvas");
+const ctx = canvas.getContext("2d");
+let width = canvas.width;
+let height = canvas.height;
 
-    const originX = width / 2;
-    const originY = height / 2;
+let originX = width / 2;
+let originY = height / 2;
 
-    const btnColor = document.getElementById("btnColor");
-    const btnReset = document.getElementById("btnReset");
-    const btnSave = document.getElementById("btnSave");
-    const modeSelect = document.getElementById("modeSelect");
+const btnColor = document.getElementById("btnColor");
+const btnReset = document.getElementById("btnReset");
+const btnSave = document.getElementById("btnSave");
+const modeSelect = document.getElementById("modeSelect");
 
-    const rangeControls = document.getElementById("rangeControls");
-    const radiusSlider = document.getElementById("radiusSlider");
-    const radiusValue = document.getElementById("radiusValue");
-    const angleInput = document.getElementById("angleInput");
+const rangeControls = document.getElementById("rangeControls");
+const radiusSlider = document.getElementById("radiusSlider");
+const radiusValue = document.getElementById("radiusValue");
+const angleInput = document.getElementById("angleInput");
+const shortcutSelect = document.getElementById("shortcutSelect");
 
-    /* ★ 新ショートカットプルダウン */
-    const shortcutSelect = document.getElementById("shortcutSelect");
+const countsDisplay = document.getElementById("countsDisplay");
+const redTableBody = document.getElementById("redTableBody");
+const blueTableBody = document.getElementById("blueTableBody");
 
-    const countsDisplay = document.getElementById("countsDisplay");
+const MAX_POINTS = 4;
+const POINT_RADIUS = 15;   // ★ スマホ向けに拡大
+const HIT_RADIUS = 18;
 
-    const redTableBody = document.getElementById("redTableBody");
-    const blueTableBody = document.getElementById("blueTableBody");
+const COLOR_RED = "#e53935";
+const COLOR_BLUE = "#1e88e5";
+const COLOR_RED_LIGHT = "rgba(229,57,53,0.35)";
+const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.35)";
 
-    const MAX_POINTS = 4;
-    const POINT_RADIUS = 10;
-    const HIT_RADIUS = 12;
+let modeIndex = 0;
+let currentColor = "red";
 
-    const COLOR_RED = "#e53935";
-    const COLOR_BLUE = "#1e88e5";
-    const COLOR_RED_LIGHT = "rgba(229,57,53,0.35)";
-    const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.35)";
+let redPoints = [];
+let bluePoints = [];
 
-    let modeIndex = 0;
-    let currentColor = "red";
+let draggingPoint = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let isDragging = false;
 
-    let redPoints = [];
-    let bluePoints = [];
+let basePoint = null;
 
-    let draggingPoint = null;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
-    let isDragging = false;
+/* =========================
+   背景画像
+========================= */
+const bgImage = new Image();
+bgImage.src = "S10 map.png";
+let bgLoaded = false;
+bgImage.onload = () => { bgLoaded = true; redraw(); };
 
-    let basePoint = null;
+const bgImage2 = new Image();
+bgImage2.src = "S10 map 遮蔽.png";
+let bg2Loaded = false;
+bgImage2.onload = () => { bg2Loaded = true; redraw(); };
 
-    /* 背景画像（後面） */
-    const bgImage = new Image();
-    bgImage.src = "S10 map.png";
-    let bgLoaded = false;
-    bgImage.onload = () => { bgLoaded = true; redraw(); };
+/* =========================
+   座標変換
+========================= */
+function logicalToCanvas(x, y) {
+  return {
+    cx: originX + x,
+    cy: originY - y
+  };
+}
 
-    /* 背景画像（前面：遮蔽） */
-    const bgImage2 = new Image();
-    bgImage2.src = "S10 map 遮蔽.png";
-    let bg2Loaded = false;
-    bgImage2.onload = () => { bg2Loaded = true; redraw(); };
+function canvasToLogical(cx, cy) {
+  return {
+    x: cx - originX,
+    y: originY - cy
+  };
+}
 
-    /* =========================
-       座標変換
-    ========================== */
-    function logicalToCanvas(x, y) {
-      return {
-        cx: originX + x,
-        cy: originY - y
-      };
+/* =========================
+   テーブル生成
+========================= */
+function initTables() {
+  for (let i = 1; i <= MAX_POINTS; i++) {
+    const redRow = document.createElement("tr");
+    redRow.innerHTML = `
+      <td>${i}</td>
+      <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="x"></td>
+      <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="y"></td>
+      <td><input type="radio" name="redBase" data-color="red" data-id="${i}"></td>
+    `;
+    redTableBody.appendChild(redRow);
+
+    const blueRow = document.createElement("tr");
+    blueRow.innerHTML = `
+      <td>${i}</td>
+      <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="x"></td>
+      <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="y"></td>
+      <td><input type="radio" name="blueBase" data-color="blue" data-id="${i}"></td>
+    `;
+    blueTableBody.appendChild(blueRow);
+  }
+
+  document.querySelectorAll(".coord-input").forEach(input => {
+    input.addEventListener("change", onCoordInputChange);
+  });
+
+  document.querySelectorAll("input[type=radio]").forEach(r => {
+    r.addEventListener("change", onBaseSelect);
+  });
+}
+
+function onBaseSelect(e) {
+  const color = e.target.dataset.color;
+  const id = parseInt(e.target.dataset.id, 10);
+  basePoint = { color, id };
+  redraw();
+}
+
+function onCoordInputChange(e) {
+  const input = e.target;
+  const color = input.dataset.color;
+  const id = parseInt(input.dataset.id, 10);
+  const axis = input.dataset.axis;
+  const value = parseFloat(input.value);
+  if (isNaN(value)) return;
+
+  let arr = color === "red" ? redPoints : bluePoints;
+  let p = arr.find(pt => pt.id === id);
+
+  if (!p) {
+    if (arr.length >= MAX_POINTS) {
+      updateTablesFromPoints();
+      return;
     }
+    p = { id, color, x: 0, y: 0 };
+    arr.push(p);
+  }
 
-    function canvasToLogical(cx, cy) {
-      return {
-        x: cx - originX,
-        y: originY - cy
-      };
+  p[axis] = value;
+  redraw();
+  updateTablesFromPoints();
+  updateCounts();
+}
+
+function updateTablesFromPoints() {
+  document.querySelectorAll(".coord-input").forEach(i => i.value = "");
+
+  redPoints.forEach(p => {
+    document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+    document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
+  });
+
+  bluePoints.forEach(p => {
+    document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+    document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
+  });
+}
+
+/* =========================
+   点操作
+========================= */
+function getNextId(arr) {
+  for (let i = 1; i <= MAX_POINTS; i++) {
+    if (!arr.find(p => p.id === i)) return i;
+  }
+  return null;
+}
+
+function addPoint(color, x, y) {
+  const arr = color === "red" ? redPoints : bluePoints;
+  if (arr.length >= MAX_POINTS) return;
+  const id = getNextId(arr);
+  arr.push({ id, color, x, y });
+}
+
+function removePoint(p) {
+  if (p.color === "red") redPoints = redPoints.filter(x => x !== p);
+  else bluePoints = bluePoints.filter(x => x !== p);
+
+  if (basePoint && basePoint.color === p.color && basePoint.id === p.id) {
+    basePoint = null;
+  }
+}
+
+function findPointAtCanvasPos(cx, cy) {
+  const all = redPoints.concat(bluePoints);
+  for (let i = all.length - 1; i >= 0; i--) {
+    const p = all[i];
+    const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
+    const dx = cx - px;
+    const dy = cy - py;
+    if (Math.sqrt(dx * dx + dy * dy) <= HIT_RADIUS) return p;
+  }
+  return null;
+}
+
+/* =========================
+   背景描画
+========================= */
+function clearCanvas() {
+  ctx.clearRect(0, 0, width, height);
+
+  if (bgLoaded) {
+    const scale = Math.min(width / 3567, height / 2400) * 1.5;
+    const w = 3567 * scale;
+    const h = 2400 * scale;
+    const x = (width - w) / 2;
+    const y = (height - h) / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(bgImage, x, y, w, h);
+    ctx.restore();
+  }
+
+  if (bg2Loaded) {
+    const scale = Math.min(width / 3567, height / 2400) * 1.5;
+    const w = 3567 * scale;
+    const h = 2400 * scale;
+    const x = (width - w) / 2;
+    const y = (height - h) / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(bgImage2, x, y, w, h);
+    ctx.restore();
+  }
+}
+
+/* =========================
+   点描画
+========================= */
+function drawPoint(p) {
+  const { cx, cy } = logicalToCanvas(p.x, p.y);
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = p.color === "red" ? COLOR_RED : COLOR_BLUE;
+  ctx.arc(cx, cy, POINT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(p.id, cx, cy);
+  ctx.restore();
+}
+
+/* =========================
+   重心
+========================= */
+function computeCentroid(arr) {
+  if (!arr.length) return null;
+  let sx = 0, sy = 0;
+  arr.forEach(p => { sx += p.x; sy += p.y; });
+  return { x: sx / arr.length, y: sy / arr.length };
+}
+
+function drawCentroid(c, color) {
+  if (!c) return;
+  const { cx, cy } = logicalToCanvas(c.x, c.y);
+  ctx.save();
+  ctx.strokeStyle = color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
+  ctx.lineWidth = 2;
+  const s = 10;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy - s);
+  ctx.lineTo(cx + s, cy + s);
+  ctx.moveTo(cx - s, cy + s);
+  ctx.lineTo(cx + s, cy - s);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* =========================
+   扇形の向き計算
+========================= */
+function getSectorDirection(base, color) {
+  const others = color === "red" ? bluePoints : redPoints;
+
+  if (others.length === 0) {
+    return (base.x <= 0) ? 0 : Math.PI;
+  }
+
+  let nearest = null;
+  let bestDist = Infinity;
+
+  others.forEach(p => {
+    const dx = p.x - base.x;
+    const dy = p.y - base.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestDist) {
+      bestDist = d2;
+      nearest = p;
     }
+  });
 
-        /* =========================
-       テーブル生成
-    ========================== */
-    function initTables() {
-      for (let i = 1; i <= MAX_POINTS; i++) {
-        const redRow = document.createElement("tr");
-        redRow.innerHTML = `
-          <td>${i}</td>
-          <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="x"></td>
-          <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="y"></td>
-          <td><input type="radio" name="redBase" data-color="red" data-id="${i}"></td>
-        `;
-        redTableBody.appendChild(redRow);
+  return Math.atan2(-(nearest.y - base.y), nearest.x - base.x);
+}
 
-        const blueRow = document.createElement("tr");
-        blueRow.innerHTML = `
-          <td>${i}</td>
-          <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="x"></td>
-          <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="y"></td>
-          <td><input type="radio" name="blueBase" data-color="blue" data-id="${i}"></td>
-        `;
-        blueTableBody.appendChild(blueRow);
-      }
+/* =========================
+   範囲攻撃
+========================= */
+function drawRangeAttack() {
+  if (!basePoint) return;
 
-      document.querySelectorAll(".coord-input").forEach(input => {
-        input.addEventListener("change", onCoordInputChange);
-      });
+  const arr = basePoint.color === "red" ? redPoints : bluePoints;
+  const self = arr.find(p => p.id === basePoint.id);
+  if (!self) return;
 
-      document.querySelectorAll("input[type=radio]").forEach(r => {
-        r.addEventListener("change", onBaseSelect);
-      });
-    }
+  const scale = 290 / 700;
+  const radiusRaw = parseFloat(radiusSlider.value);
+  const radius = radiusRaw * scale;
 
-    function onBaseSelect(e) {
-      const color = e.target.dataset.color;
-      const id = parseInt(e.target.dataset.id, 10);
-      basePoint = { color, id };
-      redraw();
-    }
+  const angleDeg = parseFloat(angleInput.value);
+  const angleRad = angleDeg * Math.PI / 180;
 
-    function onCoordInputChange(e) {
-      const input = e.target;
-      const color = input.dataset.color;
-      const id = parseInt(input.dataset.id, 10);
-      const axis = input.dataset.axis;
-      const value = parseFloat(input.value);
-      if (isNaN(value)) return;
+  const { cx, cy } = logicalToCanvas(self.x, self.y);
 
-      let arr = color === "red" ? redPoints : bluePoints;
-      let p = arr.find(pt => pt.id === id);
+  const color = basePoint.color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
 
-      if (!p) {
-        if (arr.length >= MAX_POINTS) {
-          updateTablesFromPoints();
-          return;
-        }
-        p = { id, color, x: 0, y: 0 };
-        arr.push(p);
-      }
+  ctx.save();
+  ctx.fillStyle = color;
 
-      p[axis] = value;
+  if (angleDeg >= 360) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const centerAngle = getSectorDirection(self, basePoint.color);
+    const start = centerAngle - angleRad / 2;
+    const end = centerAngle + angleRad / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* =========================
+   サブ機能適用
+========================= */
+function applySubFunction() {
+  const redC = computeCentroid(redPoints);
+  const blueC = computeCentroid(bluePoints);
+
+  drawCentroid(redC, "red");
+  drawCentroid(blueC, "blue");
+
+  if (modeIndex === 4) {
+    drawRangeAttack();
+  }
+}
+
+/* =========================
+   再描画
+========================= */
+function redraw() {
+  clearCanvas();
+  redPoints.forEach(drawPoint);
+  bluePoints.forEach(drawPoint);
+  applySubFunction();
+}
+
+/* =========================
+   PC マウス操作
+========================= */
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+
+  if (e.button === 0) {
+    const hit = findPointAtCanvasPos(cx, cy);
+
+    if (hit) {
+      const logical = canvasToLogical(cx, cy);
+      dragOffsetX = hit.x - logical.x;
+      dragOffsetY = hit.y - logical.y;
+      draggingPoint = hit;
+      isDragging = true;
+    } else {
+      const logical = canvasToLogical(cx, cy);
+      addPoint(currentColor, logical.x, logical.y);
       redraw();
       updateTablesFromPoints();
       updateCounts();
     }
+  }
 
-    function updateTablesFromPoints() {
-      document.querySelectorAll(".coord-input").forEach(i => i.value = "");
-
-      redPoints.forEach(p => {
-        document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
-        document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
-      });
-
-      bluePoints.forEach(p => {
-        document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
-        document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
-      });
-    }
-
-    /* =========================
-       点操作
-    ========================== */
-    function getNextId(arr) {
-      for (let i = 1; i <= MAX_POINTS; i++) {
-        if (!arr.find(p => p.id === i)) return i;
-      }
-      return null;
-    }
-
-    function addPoint(color, x, y) {
-      const arr = color === "red" ? redPoints : bluePoints;
-      if (arr.length >= MAX_POINTS) return;
-      const id = getNextId(arr);
-      arr.push({ id, color, x, y });
-    }
-
-    function removePoint(p) {
-      if (p.color === "red") redPoints = redPoints.filter(x => x !== p);
-      else bluePoints = bluePoints.filter(x => x !== p);
-
-      if (basePoint && basePoint.color === p.color && basePoint.id === p.id) {
-        basePoint = null;
-      }
-    }
-
-    function findPointAtCanvasPos(cx, cy) {
-      const all = redPoints.concat(bluePoints);
-      for (let i = all.length - 1; i >= 0; i--) {
-        const p = all[i];
-        const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
-        const dx = cx - px;
-        const dy = cy - py;
-        if (Math.sqrt(dx * dx + dy * dy) <= HIT_RADIUS) return p;
-      }
-      return null;
-    }
-
-    /* =========================
-       背景描画
-    ========================== */
-    function clearCanvas() {
-      ctx.clearRect(0, 0, width, height);
-
-      if (bgLoaded) {
-        const scale = Math.min(width / 3567, height / 2400) * 1.5;
-        const w = 3567 * scale;
-        const h = 2400 * scale;
-        const x = (width - w) / 2;
-        const y = (height - h) / 2;
-
-        ctx.save();
-        ctx.globalAlpha = 0.8;
-        ctx.drawImage(bgImage, x, y, w, h);
-        ctx.restore();
-      }
-
-      if (bg2Loaded) {
-        const scale = Math.min(width / 3567, height / 2400) * 1.5;
-        const w = 3567 * scale;
-        const h = 2400 * scale;
-        const x = (width - w) / 2;
-        const y = (height - h) / 2;
-
-        ctx.save();
-        ctx.globalAlpha = 0.9;
-        ctx.drawImage(bgImage2, x, y, w, h);
-        ctx.restore();
-      }
-    }
-
-    /* =========================
-       点描画
-    ========================== */
-    function drawPoint(p) {
-      const { cx, cy } = logicalToCanvas(p.x, p.y);
-      ctx.save();
-      ctx.beginPath();
-      ctx.fillStyle = p.color === "red" ? COLOR_RED : COLOR_BLUE;
-      ctx.arc(cx, cy, POINT_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 12px system-ui";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(p.id, cx, cy);
-      ctx.restore();
-    }
-
-    /* =========================
-       重心
-    ========================== */
-    function computeCentroid(arr) {
-      if (!arr.length) return null;
-      let sx = 0, sy = 0;
-      arr.forEach(p => { sx += p.x; sy += p.y; });
-      return { x: sx / arr.length, y: sy / arr.length };
-    }
-
-    function drawCentroid(c, color) {
-      if (!c) return;
-      const { cx, cy } = logicalToCanvas(c.x, c.y);
-      ctx.save();
-      ctx.strokeStyle = color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
-      ctx.lineWidth = 2;
-      const s = 10;
-      ctx.beginPath();
-      ctx.moveTo(cx - s, cy - s);
-      ctx.lineTo(cx + s, cy + s);
-      ctx.moveTo(cx - s, cy + s);
-      ctx.lineTo(cx + s, cy - s);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    /* =========================
-       扇形の向き計算
-    ========================== */
-    function getSectorDirection(base, color) {
-      const others = color === "red" ? bluePoints : redPoints;
-
-      if (others.length === 0) {
-        return (base.x <= 0) ? 0 : Math.PI;
-      }
-
-      let nearest = null;
-      let bestDist = Infinity;
-
-      others.forEach(p => {
-        const dx = p.x - base.x;
-        const dy = p.y - base.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < bestDist) {
-          bestDist = d2;
-          nearest = p;
-        }
-      });
-
-      return Math.atan2(-(nearest.y - base.y), nearest.x - base.x);
-    }
-
-    /* =========================
-       範囲攻撃（比率変換あり）
-    ========================== */
-    function drawRangeAttack() {
-      if (!basePoint) return;
-
-      const arr = basePoint.color === "red" ? redPoints : bluePoints;
-      const self = arr.find(p => p.id === basePoint.id);
-      if (!self) return;
-
-      const scale = 290 / 700;
-      const radiusRaw = parseFloat(radiusSlider.value);
-      const radius = radiusRaw * scale;
-
-      const angleDeg = parseFloat(angleInput.value);
-      const angleRad = angleDeg * Math.PI / 180;
-
-      const { cx, cy } = logicalToCanvas(self.x, self.y);
-
-      const color = basePoint.color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
-
-      ctx.save();
-      ctx.fillStyle = color;
-
-      if (angleDeg >= 360) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        const centerAngle = getSectorDirection(self, basePoint.color);
-        const start = centerAngle - angleRad / 2;
-        const end = centerAngle + angleRad / 2;
-
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, radius, start, end);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      ctx.restore();
-    }
-
-    /* =========================
-       サブ機能適用
-    ========================== */
-    function applySubFunction() {
-      const redC = computeCentroid(redPoints);
-      const blueC = computeCentroid(bluePoints);
-
-      drawCentroid(redC, "red");
-      drawCentroid(blueC, "blue");
-
-      if (modeIndex === 4) {
-        drawRangeAttack();
-      }
-    }
-
-    /* =========================
-       再描画
-    ========================== */
-    function redraw() {
-      clearCanvas();
-      redPoints.forEach(drawPoint);
-      bluePoints.forEach(drawPoint);
-      applySubFunction();
-    }
-
-    /* =========================
-       ショートカット処理
-    ========================== */
-    shortcutSelect.addEventListener("change", () => {
-      const v = shortcutSelect.value;
-
-      if (v === "manual") return;
-
-      if (v === "tsubaki") {
-        radiusSlider.value = 700;
-        angleInput.value = 360;
-      }
-      if (v === "hanako") {
-        radiusSlider.value = 850;
-        angleInput.value = 60;
-      }
-      if (v === "hoshinoEX") {
-        radiusSlider.value = 300;
-        angleInput.value = 360;
-      }
-      if (v === "hoshinoSS") {
-        radiusSlider.value = 850;
-        angleInput.value = 30;
-      }
-      if (v === "yakumo") {
-        radiusSlider.value = 510;
-        angleInput.value = 360;
-      }
-
-      radiusValue.textContent = radiusSlider.value;
-      redraw();
-    });
-
-    /* =========================
-       イベント
-    ========================== */
-    canvas.addEventListener("contextmenu", e => e.preventDefault());
-
-    canvas.addEventListener("mousedown", e => {
-      const rect = canvas.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-
-      if (e.button === 0) {
-        const hit = findPointAtCanvasPos(cx, cy);
-
-        if (hit) {
-          const logical = canvasToLogical(cx, cy);
-          dragOffsetX = hit.x - logical.x;
-          dragOffsetY = hit.y - logical.y;
-          draggingPoint = hit;
-          isDragging = true;
-        } else {
-          const logical = canvasToLogical(cx, cy);
-          addPoint(currentColor, logical.x, logical.y);
-          redraw();
-          updateTablesFromPoints();
-          updateCounts();
-        }
-      }
-
-      if (e.button === 2) {
-        const hit = findPointAtCanvasPos(cx, cy);
-        if (hit) {
-          removePoint(hit);
-          redraw();
-          updateTablesFromPoints();
-          updateCounts();
-        }
-      }
-    });
-
-    canvas.addEventListener("mousemove", e => {
-      if (!isDragging || !draggingPoint) return;
-      const rect = canvas.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const logical = canvasToLogical(cx, cy);
-      draggingPoint.x = logical.x + dragOffsetX;
-      draggingPoint.y = logical.y + dragOffsetY;
+  if (e.button === 2) {
+    const hit = findPointAtCanvasPos(cx, cy);
+    if (hit) {
+      removePoint(hit);
       redraw();
       updateTablesFromPoints();
-    });
+      updateCounts();
+    }
+  }
+});
 
-    canvas.addEventListener("mouseup", () => {
-      isDragging = false;
-      draggingPoint = null;
-    });
+canvas.addEventListener("mousemove", e => {
+  if (!isDragging || !draggingPoint) return;
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const logical = canvasToLogical(cx, cy);
+  draggingPoint.x = logical.x + dragOffsetX;
+  draggingPoint.y = logical.y + dragOffsetY;
+  redraw();
+  updateTablesFromPoints();
+});
 
-    /* スマホ用変数 */
+canvas.addEventListener("mouseup", () => {
+  isDragging = false;
+  draggingPoint = null;
+});
+
+/* =========================
+   ★ スマホ操作（前半）
+   タップ／長押し判定開始
+========================= */
 let touchStartTime = 0;
 let touchStartX = 0;
 let touchStartY = 0;
@@ -633,7 +665,7 @@ let lastTapY = 0;
 let longPressTimer = null;
 let isLongPress = false;
 
-/* touchstart（タップ／長押し判定開始） */
+/* touchstart */
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const t = e.touches[0];
@@ -672,10 +704,14 @@ canvas.addEventListener("touchmove", (e) => {
   updateTablesFromPoints();
 });
 
-/* touchend（タップ／ダブルタップ／長押し終了の判定） */
+/* =========================
+   ★ スマホ操作（後半）
+   touchend / touchcancel / ダブルタップ判定
+========================= */
+
+/* touchend */
 canvas.addEventListener("touchend", (e) => {
   e.preventDefault();
-
   clearTimeout(longPressTimer);
 
   const now = Date.now();
@@ -688,8 +724,6 @@ canvas.addEventListener("touchend", (e) => {
     return;
   }
 
-  // タップ位置
-  const rect = canvas.getBoundingClientRect();
   const cx = touchStartX;
   const cy = touchStartY;
 
@@ -699,7 +733,6 @@ canvas.addEventListener("touchend", (e) => {
   const dy = Math.abs(cy - lastTapY);
 
   if (tapInterval < 300 && dx < 20 && dy < 20) {
-    // ダブルタップ → 削除
     const hit = findPointAtCanvasPos(cx, cy);
     if (hit) {
       removePoint(hit);
@@ -707,8 +740,7 @@ canvas.addEventListener("touchend", (e) => {
       updateTablesFromPoints();
       updateCounts();
     }
-
-    lastTapTime = 0; // リセット
+    lastTapTime = 0;
     return;
   }
 
@@ -721,85 +753,140 @@ canvas.addEventListener("touchend", (e) => {
     updateCounts();
   }
 
-  // タップ情報更新（次のダブルタップ判定用）
+  // 次のダブルタップ判定用に記録
   lastTapTime = now;
   lastTapX = cx;
   lastTapY = cy;
 });
 
-/* touchcancel（指が画面外に出たなど） */
+/* touchcancel */
 canvas.addEventListener("touchcancel", () => {
   clearTimeout(longPressTimer);
   isLongPress = false;
   draggingPoint = null;
 });
 
-    canvas.addEventListener("mouseleave", () => {
-      isDragging = false;
-      draggingPoint = null;
-    });
+/* =========================
+   キャンバス離脱（PC/スマホ共通）
+========================= */
+canvas.addEventListener("mouseleave", () => {
+  isDragging = false;
+  draggingPoint = null;
+});
 
-    /* =========================
-       ボタン
-    ========================== */
-    btnColor.addEventListener("click", () => {
-      if (currentColor === "red") {
-        currentColor = "blue";
-        btnColor.textContent = "現在：青 → 赤に切り替え";
-      } else {
-        currentColor = "red";
-        btnColor.textContent = "現在：赤 → 青に切り替え";
-      }
-    });
+/* 右クリックメニュー無効化 */
+canvas.addEventListener("contextmenu", e => e.preventDefault());
 
-    btnReset.addEventListener("click", () => {
-      redPoints = [];
-      bluePoints = [];
-      basePoint = null;
-      redraw();
-      updateTablesFromPoints();
-      updateCounts();
-    });
+/* =========================
+   ボタン操作
+========================= */
 
-    btnSave.addEventListener("click", () => {
-      const link = document.createElement("a");
-      link.download = "shittomu_no_hako.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-    });
+/* 色切り替え */
+btnColor.addEventListener("click", () => {
+  if (currentColor === "red") {
+    currentColor = "blue";
+    btnColor.textContent = "現在：青 → 赤に切り替え";
+  } else {
+    currentColor = "red";
+    btnColor.textContent = "現在：赤 → 青に切り替え";
+  }
+});
 
-    /* サブ機能切り替え */
-    modeSelect.addEventListener("change", () => {
-      modeIndex = parseInt(modeSelect.value, 10);
-      basePoint = null;
+/* リセット */
+btnReset.addEventListener("click", () => {
+  redPoints = [];
+  bluePoints = [];
+  basePoint = null;
+  redraw();
+  updateTablesFromPoints();
+  updateCounts();
+});
 
-      if (modeIndex === 4) {
-        rangeControls.style.display = "block";
-      } else {
-        rangeControls.style.display = "none";
-      }
+/* 画像保存 */
+btnSave.addEventListener("click", () => {
+  const link = document.createElement("a");
+  link.download = "shittomu_no_hako.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
 
-      redraw();
-    });
+/* =========================
+   モード切り替え（範囲攻撃 UI の表示制御）
+========================= */
+modeSelect.addEventListener("change", () => {
+  modeIndex = parseInt(modeSelect.value, 10);
 
-    /* 範囲攻撃 UI */
-    radiusSlider.addEventListener("input", () => {
-      radiusValue.textContent = radiusSlider.value;
-      shortcutSelect.value = "manual";
-      redraw();
-    });
+  if (modeIndex === 4) {
+    rangeControls.style.display = "block";
+  } else {
+    rangeControls.style.display = "none";
+  }
 
-    angleInput.addEventListener("input", () => {
-      shortcutSelect.value = "manual";
-      redraw();
-    });
+  redraw();
+});
 
-    /* =========================
-       初期化
-    ========================== */
-    initTables();
-    redraw();
-    updateCounts();
-  </script>
-</body>
-</html>
+/* =========================
+   範囲攻撃：スライダー & 角度
+========================= */
+radiusSlider.addEventListener("input", () => {
+  radiusValue.textContent = radiusSlider.value;
+  redraw();
+});
+
+angleInput.addEventListener("input", () => {
+  redraw();
+});
+
+/* =========================
+   範囲攻撃ショートカット
+========================= */
+shortcutSelect.addEventListener("change", () => {
+  const v = shortcutSelect.value;
+
+  if (v === "tsubaki") {
+    radiusSlider.value = 700;
+    angleInput.value = 360;
+  } else if (v === "hanako") {
+    radiusSlider.value = 800;
+    angleInput.value = 360;
+  } else if (v === "hoshinoEX") {
+    radiusSlider.value = 600;
+    angleInput.value = 90;
+  } else if (v === "hoshinoSS") {
+    radiusSlider.value = 600;
+    angleInput.value = 360;
+  } else if (v === "yakumo") {
+    radiusSlider.value = 1000;
+    angleInput.value = 360;
+  }
+
+  radiusValue.textContent = radiusSlider.value;
+  redraw();
+});
+
+/* =========================
+   座標数カウント
+========================= */
+function updateCounts() {
+  countsDisplay.textContent =
+    `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
+}
+
+/* =========================
+   スマホUI：アコーディオン
+========================= */
+document.querySelectorAll(".table-title").forEach(title => {
+  title.addEventListener("click", () => {
+    const targetId = title.dataset.target;
+    const content = document.getElementById(targetId);
+    content.classList.toggle("open");
+  });
+});
+
+/* =========================
+   初期化
+========================= */
+initTables();
+updateCounts();
+redraw();
+</script>
