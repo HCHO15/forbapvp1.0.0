@@ -194,8 +194,8 @@ const HIT_RADIUS = 12;
 
 const COLOR_RED = "#e53935";
 const COLOR_BLUE = "#1e88e5";
-const COLOR_RED_LIGHT = "rgba(229,57,53,0.35)";
-const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.35)";
+const COLOR_RED_LIGHT = "rgba(229,57,53,0.55)";   // ★ 濃くした
+const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.55)"; // ★ 濃くした
 
 let modeIndex = 0;
 let currentColor = "red";
@@ -464,7 +464,14 @@ function findNearest(from, arr) {
 function drawHighlightCircle(point, color) {
   if (!point) return;
   const { cx, cy } = logicalToCanvas(point.x, point.y);
-  drawCircle(cx, cy, POINT_RADIUS + 8, color);
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;                 // ★ 線を太く
+  ctx.beginPath();
+  ctx.arc(cx, cy, POINT_RADIUS + 5, 0, Math.PI * 2);  // ★ 半径を短めに
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawCentroidMark(arr, colorLight) {
