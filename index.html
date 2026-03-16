@@ -735,8 +735,30 @@ btnReset.addEventListener("click", () => {
 });
 
 btnSave.addEventListener("click", () => {
+
+  // 赤点（存在しない場合は 0,0）
+  const redArr = [1,2,3,4].flatMap(id => {
+    const p = redPoints.find(pt => pt.id === id);
+    const x = p ? Math.round(p.x) : 0;
+    const y = p ? Math.round(p.y) : 0;
+    return [x, y];
+  });
+
+  // 青点（存在しない場合は 0,0）
+  const blueArr = [1,2,3,4].flatMap(id => {
+    const p = bluePoints.find(pt => pt.id === id);
+    const x = p ? Math.round(p.x) : 0;
+    const y = p ? Math.round(p.y) : 0;
+    return [x, y];
+  });
+
+  // ファイル名生成（短縮版）
+  const fileName =
+    `Shittim_no_hako_R_${redArr.join("_")}_B_${blueArr.join("_")}.png`;
+
+  // 保存処理
   const link = document.createElement("a");
-  link.download = "shittomu_no_hako.png";
+  link.download = fileName;
   link.href = canvas.toDataURL("image/png");
   link.click();
 });
