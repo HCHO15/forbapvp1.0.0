@@ -174,245 +174,230 @@
         <tbody id="blueTableBody"></tbody>
       </table>
 
-        redraw();
-  updateTablesFromPoints();
-});
+<script>
+/* =========================
+   基本設定
+========================= */
+const canvas = document.getElementById("mainCanvas");
+const ctx = canvas.getContext("2d");
+const width = canvas.width;
+const height = canvas.height;
+
+const originX = width / 2;
+const originY = height / 2;
+
+const btnColor = document.getElementById("btnColor");
+const btnReset = document.getElementById("btnReset");
+const btnSave = document.getElementById("btnSave");
+const modeSelect = document.getElementById("modeSelect");
+
+const rangeControls = document.getElementById("rangeControls");
+const radiusSlider = document.getElementById("radiusSlider");
+const radiusValue = document.getElementById("radiusValue");
+const angleInput = document.getElementById("angleInput");
+const shortcutSelect = document.getElementById("shortcutSelect");
+
+const countsDisplay = document.getElementById("countsDisplay");
+const redTableBody = document.getElementById("redTableBody");
+const blueTableBody = document.getElementById("blueTableBody");
+
+const MAX_POINTS = 4;
+const POINT_RADIUS = 10;
+const HIT_RADIUS = 12;
+
+const COLOR_RED = "#e53935";
+const COLOR_BLUE = "#1e88e5";
+const COLOR_RED_LIGHT = "rgba(229,57,53,0.55)";
+const COLOR_BLUE_LIGHT = "rgba(30,136,229,0.55)";
+
+let modeIndex = 0;
+let currentColor = "red";
+
+let redPoints = [];
+let bluePoints = [];
+
+let draggingPoint = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let isDragging = false;
+
+let basePoint = null;
+
+/* 背景画像 */
+const bgImage = new Image();
+bgImage.src = "S10 map.png";
+let bgLoaded = false;
+bgImage.onload = () => { bgLoaded = true; redraw(); };
+
+const bgImage2 = new Image();
+bgImage2.src = "S10 map 遮蔽.png";
+let bg2Loaded = false;
+bgImage2.onload = () => { bg2Loaded = true; redraw(); };
 
 /* =========================
-   ボタン
+   座標変換
 ========================= */
-btnColor.addEventListener("click", () => {
-  if (currentColor === "red") {
-    currentColor = "blue";
-    btnColor.textContent = "現在：青 → 赤に切り替え";
-  } else {
-    currentColor = "red";
-    btnColor.textContent = "現在：赤 → 青に切り替え";
-  }
-});
-
-btnReset.addEventListener("click", () => {
-  redPoints = [];
-  bluePoints = [];
-  basePoint = null;
-  redraw();
-  updateTablesFromPoints();
-  updateCounts();
-});
-
-btnSave.addEventListener("click", () => {
-
-  // 赤点（存在しない場合は 0,0）
-  const redArr = [1,2,3,4].flatMap(id => {
-    const p = redPoints.find(pt => pt.id === id);
-    const x = p ? Math.round(p.x) : 0;
-    const y = p ? Math.round(p.y) : 0;
-    return [x, y];
-  });
-
-  // 青点（存在しない場合は 0,0）
-  const blueArr = [1,2,3,4].flatMap(id => {
-    const p = bluePoints.find(pt => pt.id === id);
-    const x = p ? Math.round(p.x) : 0;
-    const y = p ? Math.round(p.y) : 0;
-    return [x, y];
-  });
-
-  // ファイル名生成（短縮版）
-  const fileName =
-    `Shittim_no_hako_R_${redArr.join("_")}_B_${blueArr.join("_")}.png`;
-
-  // 保存処理
-  const link = document.createElement("a");
-  link.download = fileName;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-});
+function logicalToCanvas(x, y) {
+  return { cx: originX + x, cy: originY - y };
+}
+function canvasToLogical(cx, cy) {
+  return { x: cx - originX, y: originY - cy };
+}
 
 /* =========================
-   サブ機能切り替え
+   テーブル生成
 ========================= */
-modeSelect.addEventListener("change", () => {
-  modeIndex = parseInt(modeSelect.value, 10);
+function initTables() {
+  for (let i = 1; i <= MAX_POINTS; i++) {
+    const redRow = document.createElement("tr");
+    redRow.innerHTML = `
+      <td>${i}</td>
+      <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="x"></td>
+      <td><input class="coord-input" data-color="red" data-id="${i}" data-axis="y"></td>
+      <td><input type="radio" name="redBase" data-color="red" data-id="${i}"></td>
+    `;
+    redTableBody.appendChild(redRow);
 
-  if (modeIndex === 4) {
-    rangeControls.style.display = "block";
-  } else {
-    rangeControls.style.display = "none";
-  }
-
-  redraw();
-});
-
-/* =========================
-   範囲確認 UI
-========================= */
-radiusSlider.addEventListener("input", () => {
-  radiusValue.textContent = radiusSlider.value;
-  shortcutSelect.value = "manual";
-  redraw();
-});
-
-angleInput.addEventListener("input", () => {
-  shortcutSelect.value = "manual";
-  redraw();
-});
-
-shortcutSelect.addEventListener("change", () => {
-  const v = shortcutSelect.value;
-
-  // 半径・角度は drawRangeAttack 内で上書きされるため
-  // ここでは UI の表示だけ更新する
-  const preset = {
-    yuzuEX:        [200, 360],
-    yuzuNS:        [100, 360],
-    atsukoEX:      [500, 360],
-    atsukoNS:      [150, 360],
-    koharuMizugiEX:[200, 360],
-    sakiEX:        [100, 360],
-    sumireEX:      [400, 45],
-    cherinoEX:     [1000,360],
-    nagisaEX:      [250, 360],
-    nonomiEX:      [950, 60],
-    hinaMizugi:    [950, 90],
-    minoriEX:      [300, 360],
-    minoriNS:      [300, 360],
-    reisaEX:       [700, 90],
-    reisaMagicEX:  [2000,360],
-    tsubaki:       [700, 360],
-    hanako:        [850, 60],
-    hoshinoEX:     [300, 360],
-    hoshinoSS:     [850, 30],
-    yakumo:        [510, 360]
-  };
-
-  if (preset[v]) {
-    radiusSlider.value = preset[v][0];
-    angleInput.value = preset[v][1];
+    const blueRow = document.createElement("tr");
+    blueRow.innerHTML = `
+      <td>${i}</td>
+      <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="x"></td>
+      <td><input class="coord-input" data-color="blue" data-id="${i}" data-axis="y"></td>
+      <td><input type="radio" name="blueBase" data-color="blue" data-id="${i}"></td>
+    `;
+    blueTableBody.appendChild(blueRow);
   }
 
-  radiusValue.textContent = radiusSlider.value;
+  document.querySelectorAll(".coord-input").forEach(input =>
+    input.addEventListener("change", onCoordInputChange)
+  );
+
+  document.querySelectorAll("input[type=radio]").forEach(r =>
+    r.addEventListener("change", onBaseSelect)
+  );
+}
+
+function onBaseSelect(e) {
+  const color = e.target.dataset.color;
+  const id = parseInt(e.target.dataset.id, 10);
+  basePoint = { color, id };
   redraw();
-});
-
-/* =========================
-   カウント表示
-========================= */
-function updateCounts() {
-  countsDisplay.textContent =
-    `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
 }
 
-/* =========================
-   プリセット保存機能
-========================= */
+function onCoordInputChange(e) {
+  const input = e.target;
+  const color = input.dataset.color;
+  const id = parseInt(input.dataset.id, 10);
+  const axis = input.dataset.axis;
+  const value = parseFloat(input.value);
+  if (isNaN(value)) return;
 
-function getCurrentCoordinates() {
-  return {
-    red: [1,2,3,4].map(id => {
-      const p = redPoints.find(pt => pt.id === id);
-      return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
-    }),
-    blue: [1,2,3,4].map(id => {
-      const p = bluePoints.find(pt => pt.id === id);
-      return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
-    })
-  };
-}
+  let arr = color === "red" ? redPoints : bluePoints;
+  let p = arr.find(pt => pt.id === id);
 
-function applyPresetData(data) {
-  redPoints = [];
-  bluePoints = [];
-
-  data.red.forEach((p, i) => {
-    if (p.x !== 0 || p.y !== 0)
-      redPoints.push({ id: i+1, color: "red", x: p.x, y: p.y });
-  });
-
-  data.blue.forEach((p, i) => {
-    if (p.x !== 0 || p.y !== 0)
-      bluePoints.push({ id: i+1, color: "blue", x: p.x, y: p.y });
-  });
-
-  basePoint = null;
-  redraw();
-  updateTablesFromPoints();
-  updateCounts();
-}
-
-function loadPresets() {
-  document.querySelectorAll(".preset-block").forEach(block => {
-    const id = block.dataset.id;
-    const nameInput = block.querySelector(".preset-name");
-    const dataPre = block.querySelector(".preset-data");
-
-    const saved = localStorage.getItem("preset_" + id);
-    if (saved) {
-      const obj = JSON.parse(saved);
-      nameInput.value = obj.name;
-      dataPre.textContent = JSON.stringify(obj.data, null, 2);
-    }
-  });
-}
-
-function savePreset(id, name, data) {
-  localStorage.setItem("preset_" + id, JSON.stringify({ name, data }));
-}
-
-document.querySelectorAll(".preset-save").forEach(btn => {
-  btn.addEventListener("click", e => {
-    const block = e.target.closest(".preset-block");
-    const id = block.dataset.id;
-    const name = block.querySelector(".preset-name").value;
-
-    const data = getCurrentCoordinates();
-    savePreset(id, name, data);
-
-    block.querySelector(".preset-data").textContent =
-      JSON.stringify(data, null, 2);
-
-    alert("プリセット " + name + " を保存しました");
-  });
-});
-
-document.querySelectorAll(".preset-apply").forEach(btn => {
-  btn.addEventListener("click", e => {
-    const block = e.target.closest(".preset-block");
-    const id = block.dataset.id;
-
-    const saved = localStorage.getItem("preset_" + id);
-    if (!saved) {
-      alert("プリセットが保存されていません");
+  if (!p) {
+    if (arr.length >= MAX_POINTS) {
+      updateTablesFromPoints();
       return;
     }
+    p = { id, color, x: 0, y: 0 };
+    arr.push(p);
+  }
 
-    const obj = JSON.parse(saved);
-    applyPresetData(obj.data);
+  p[axis] = value;
+  redraw();
+  updateTablesFromPoints();
+  updateCounts();
+}
+
+function updateTablesFromPoints() {
+  document.querySelectorAll(".coord-input").forEach(i => i.value = "");
+
+  redPoints.forEach(p => {
+    document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+    document.querySelector(`.coord-input[data-color="red"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
   });
-});
 
-document.querySelectorAll(".preset-delete").forEach(btn => {
-  btn.addEventListener("click", e => {
-    if (!confirm("本当に削除しますか？")) return;
-
-    const block = e.target.closest(".preset-block");
-    const id = block.dataset.id;
-
-    localStorage.removeItem("preset_" + id);
-    block.querySelector(".preset-data").textContent = "";
-
-    alert("削除しました");
+  bluePoints.forEach(p => {
+    document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="x"]`).value = Math.round(p.x);
+    document.querySelector(`.coord-input[data-color="blue"][data-id="${p.id}"][data-axis="y"]`).value = Math.round(p.y);
   });
-});
-
-// 初期ロード
-loadPresets();
+}
 
 /* =========================
-   初期化
+   点操作
 ========================= */
-initTables();
-redraw();
+function getNextId(arr) {
+  for (let i = 1; i <= MAX_POINTS; i++) {
+    if (!arr.find(p => p.id === i)) return i;
+  }
+  return null;
+}
+
+function addPoint(color, x, y) {
+  const arr = color === "red" ? redPoints : bluePoints;
+  if (arr.length >= MAX_POINTS) return;
+  const id = getNextId(arr);
+  arr.push({ id, color, x, y });
+}
+
+function removePoint(p) {
+  if (p.color === "red") redPoints = redPoints.filter(x => x !== p);
+  else bluePoints = bluePoints.filter(x => x !== p);
+
+  if (basePoint && basePoint.color === p.color && basePoint.id === p.id) {
+    basePoint = null;
+  }
+}
+
+function findPointAtCanvasPos(cx, cy) {
+  const all = redPoints.concat(bluePoints);
+  for (let i = all.length - 1; i >= 0; i--) {
+    const p = all[i];
+    const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
+    const dx = cx - px;
+    const dy = cy - py;
+    if (Math.sqrt(dx * dx + dy * dy) <= HIT_RADIUS) return p;
+  }
+  return null;
+}
+
+/* =========================
+   描画ユーティリティ
+========================= */
+function drawCircle(cx, cy, r, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCross(cx, cy, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  const s = 10;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, cy - s);
+  ctx.lineTo(cx + s, cy + s);
+  ctx.moveTo(cx - s, cy + s);
+  ctx.lineTo(cx + s, cy - s);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* =========================
+   重心
+========================= */
+function computeCentroid(arr) {
+  if (!arr.length) return null;
+  let sx = 0, sy = 0;
+  arr.forEach(p => { sx += p.x; sy += p.y; });
+  return { x: sx / arr.length, y: sy / arr.length };
+}
 
 });
 
