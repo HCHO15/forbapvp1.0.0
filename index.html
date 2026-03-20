@@ -75,7 +75,7 @@
       background: #f0f0f0;
     }
 
-    /* 範囲攻撃 UI */
+    /* 範囲確認 UI */
     #rangeControls {
       display: none;
       margin-top: 6px;
@@ -104,40 +104,40 @@
           <option value="1">バフSP</option>
           <option value="2">攻撃ST</option>
           <option value="3">バフST</option>
-          <option value="4">範囲攻撃</option>
+          <option value="4">範囲確認</option>
         </select>
       </div>
 
-      <!-- 範囲攻撃 UI -->
+      <!-- 範囲確認 UI -->
       <div id="rangeControls">
         <div>
           半径(m)：
-          <input type="range" id="radiusSlider" min="50" max="1000" step="10" value="700">
+          <input type="range" id="radiusSlider" min="50" max="1200" step="10" value="700">
           <span id="radiusValue">700</span>
 
           <select id="shortcutSelect">
             <option value="manual">手動</option>
             <option value="atsukoEX">アツコEX</option>
             <option value="atsukoNS">アツコNS</option>
-            <option value="irohaNS">イロハNS</option>
             <option value="koharuMizugiEX">コハル（水着）EX</option>
             <option value="sakiEX">サキEX</option>
             <option value="sumireEX">スミレEX</option>
-            <option value="cherino">チェリノEX</option>
-            <option value="tsubaki">ツバキEX</option>
+            <option value="cherinoEX">チェリノEX</option>
+            <option value="tsubakiEX">ツバキEX</option>
             <option value="nagisaEX">ナギサEX</option>
             <option value="nonomiEX">ノノミEX</option>
-            <option value="hanako">ハナコ（水着）EX</option>
-            <option value="hinaMizugi">ヒナ（水着）EX</option> 
-            <option value="hoshinoEX">ホシノ（臨戦）EX</option>
-            <option value="hoshinoSS">ホシノ（臨戦）SS</option>
+            <option value="hasumiMizugiEX">ハスミ（水着）EX</option>
+            <option value="hanakoMizugiEX">ハナコ（水着）EX</option>
+            <option value="hinaMizugiEX">ヒナ（水着）EX</option> 
+            <option value="hoshinoRinsenEX">ホシノ（臨戦）EX</option>
+            <option value="hoshinoRinsenSS">ホシノ（臨戦）SS</option>
             <option value="minoriEX">ミノリEX</option>
             <option value="minoriNS">ミノリNS</option>
             <option value="yuzuEX">ユズEX</option>
             <option value="yuzuNS">ユズNS</option>
             <option value="reisaEX">レイサEX</option>
             <option value="reisaMagicEX">レイサ（マジカル）EX</option>
-            <option value="yakumo">ヤクモEX</option>
+            <option value="yakumoEX">ヤクモEX</option>
           </select>
         </div>
 
@@ -247,7 +247,7 @@
         <li><strong>バフSP：</strong> SPバッファーのターゲット を強調します</li>
         <li><strong>攻撃ST：</strong> 基準点に選択したSTの攻撃ターゲット を強調します</li>
         <li><strong>バフST：</strong> 基準点に選択したSTのバフターゲット を強調します</li>
-        <li><strong>範囲攻撃：</strong> 基準点を中心に円/扇形を描画します（半径・角度調整可）</li>
+        <li><strong>範囲確認：</strong> 基準点を中心に円/扇形を描画します（半径・角度調整可）</li>
       </ul>
 
       <h4>■ その他</h4>
@@ -592,8 +592,49 @@ function drawCentroidMark(arr, colorLight) {
   drawCross(cx, cy, colorLight);
 }
 
+const rangePresets = {
+  yuzuEX:        { radius: 200, angle: 360, center: "nearestOpp" },
+  yuzuNS:        { radius: 100, angle: 360, center: "self" },
+  atsukoEX:      { radius: 500, angle: 360, center: "self" },
+  atsukoNS:      { radius: 150, angle: 360, center: "self" },
+  koharuMizugiEX:{ radius: 200, angle: 360, center: "nearestOpp" },
+  sakiEX:        { radius: 100, angle: 360, center: "centroidOpp" },
+  sumireEX:      { radius: 400, angle: 45,  center: "self" },
+  cherinoEX:     { radius: 1000,angle: 360, center: "self" },
+  nagisaEX:      { radius: 250, angle: 360, center: "centroidOpp" },
+  nonomiEX:      { radius: 950, angle: 60,  center: "self" },
+  hinaMizugiEX:    { radius: 950, angle: 90,  center: "self" },
+  minoriEX:      { radius: 300, angle: 360, center: "centroidOpp" },
+  minoriNS:      { radius: 300, angle: 360, center: "centroidOpp" },
+  reisaEX:       { radius: 700, angle: 90,  center: "self" },
+  tsubakiEX:       { radius: 700, angle: 360, center: "self" },
+  hanakoMizugiEX:        { radius: 850, angle: 60,  center: "self" },
+  hoshinoRinsenEX:     { radius: 300, angle: 360, center: "nearestOpp" },
+  hoshinoRinsenSS:     { radius: 850, angle: 30,  center: "self" },
+  hasumiMizugiEX:{ radius: 1150,angle: 45,  center: "self" }, 
+  yakumoEX:        { radius: 510, angle: 360, center: "centroidOpp" }
+};
+
+  // 基準点に最も近い異色点を返す
+function getNearestOppositePoint(self) {
+  const others = self.color === "red" ? bluePoints : redPoints;
+  if (!others.length) return null;
+  return findNearest(self, others);
+}
+
+// 基準点と同色の重心 → そこから最も近い異色点を返す
+function getNearestOppositeFromSameColorCentroid(self) {
+  const same = self.color === "red" ? redPoints : bluePoints;
+  const others = self.color === "red" ? bluePoints : redPoints;
+
+  const c = computeCentroid(same);
+  if (!c || !others.length) return null;
+
+  return findNearest(c, others);
+}
+  
 /* =========================
-   範囲攻撃
+   範囲確認
 ========================= */
 function getSectorDirection(base, color) {
   const others = color === "red" ? bluePoints : redPoints;
@@ -625,6 +666,11 @@ function drawRangeAttack() {
   const self = arr.find(p => p.id === basePoint.id);
   if (!self) return;
 
+  // ▼ ショートカットのプリセット取得
+  const key = shortcutSelect.value;
+  const preset = rangePresets[key] || { center: "self" };
+
+  // ▼ 半径・角度の取得（UI の値をそのまま使用）
   const scale = 290 / 700;
   const radiusRaw = parseFloat(radiusSlider.value);
   const radius = radiusRaw * scale;
@@ -632,18 +678,35 @@ function drawRangeAttack() {
   const angleDeg = parseFloat(angleInput.value);
   const angleRad = angleDeg * Math.PI / 180;
 
-  const { cx, cy } = logicalToCanvas(self.x, self.y);
+  // ▼ 中心点の決定（self / nearestOpp / centroidOpp）
+  let centerPoint = self;
+
+  if (preset.center === "nearestOpp") {
+    const p = getNearestOppositePoint(self);
+    if (p) centerPoint = p;
+  }
+
+  if (preset.center === "centroidOpp") {
+    const p = getNearestOppositeFromSameColorCentroid(self);
+    if (p) centerPoint = p;
+  }
+
+  // ▼ 中心点の座標を使用
+  const { cx, cy } = logicalToCanvas(centerPoint.x, centerPoint.y);
   const color = basePoint.color === "red" ? COLOR_RED_LIGHT : COLOR_BLUE_LIGHT;
 
   ctx.save();
   ctx.fillStyle = color;
 
+  // ▼ 円形（角度360）
   if (angleDeg >= 360) {
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.fill();
-  } else {
-    const centerAngle = getSectorDirection(self, basePoint.color);
+  } 
+  // ▼ 扇形
+  else {
+    const centerAngle = getSectorDirection(centerPoint, basePoint.color);
     const start = centerAngle - angleRad / 2;
     const end = centerAngle + angleRad / 2;
 
@@ -890,7 +953,7 @@ modeSelect.addEventListener("change", () => {
 });
 
 /* =========================
-   範囲攻撃 UI
+   範囲確認 UI
 ========================= */
 radiusSlider.addEventListener("input", () => {
   radiusValue.textContent = radiusSlider.value;
@@ -904,91 +967,11 @@ angleInput.addEventListener("input", () => {
 });
 
 shortcutSelect.addEventListener("change", () => {
-  const v = shortcutSelect.value;
+  const key = shortcutSelect.value;
 
-  if (v === "tsubaki") {
-    radiusSlider.value = 700;
-    angleInput.value = 360;
-  }
-  if (v === "hanako") {
-    radiusSlider.value = 850;
-    angleInput.value = 60;
-  }
-  if (v === "hoshinoEX") {
-    radiusSlider.value = 300;
-    angleInput.value = 360;
-  }
-  if (v === "hoshinoSS") {
-    radiusSlider.value = 850;
-    angleInput.value = 30;
-  }
-  if (v === "yakumo") {
-    radiusSlider.value = 510;
-    angleInput.value = 360;
-  }
-    if (v === "atsukoEX") {
-    radiusSlider.value = 500;
-    angleInput.value = 360;
-  }
-  if (v === "atsukoNS") {
-    radiusSlider.value = 150;
-    angleInput.value = 360;
-  }
-  if (v === "irohaNS") {
-    radiusSlider.value = 200;
-    angleInput.value = 360;
-  }
-  if (v === "koharuMizugiEX") {
-    radiusSlider.value = 200;
-    angleInput.value = 360;
-  }
-  if (v === "sakiEX") {
-    radiusSlider.value = 100;
-    angleInput.value = 360;
-  }
-  if (v === "sumireEX") {
-    radiusSlider.value = 400;
-    angleInput.value = 45;
-  }
-  if (v === "cherino") {
-    radiusSlider.value = 1000;
-    angleInput.value = 360;
-  }
-  if (v === "nagisaEX") {
-    radiusSlider.value = 250;
-    angleInput.value = 360;
-  }
-  if (v === "nonomiEX") {
-    radiusSlider.value = 950;
-    angleInput.value = 60;
-  }
-  if (v === "hinaMizugi") {
-    radiusSlider.value = 950;
-    angleInput.value = 90;
-  }
-  if (v === "minoriEX") {
-    radiusSlider.value = 300;
-    angleInput.value = 360;
-  }
-  if (v === "minoriNS") {
-    radiusSlider.value = 300;
-    angleInput.value = 360;
-  }
-  if (v === "yuzuEX") {
-    radiusSlider.value = 200;
-    angleInput.value = 360;
-  }
-  if (v === "yuzuNS") {
-    radiusSlider.value = 100;
-    angleInput.value = 360;
-  }
-  if (v === "reisaEX") {
-    radiusSlider.value = 700;
-    angleInput.value = 90;
-  }
-  if (v === "reisaMagicEX") {
-    radiusSlider.value = 2000;
-    angleInput.value = 360;
+  if (key !== "manual" && rangePresets[key]) {
+    radiusSlider.value = rangePresets[key].radius;
+    angleInput.value = rangePresets[key].angle;
   }
 
   radiusValue.textContent = radiusSlider.value;
