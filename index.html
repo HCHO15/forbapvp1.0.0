@@ -19,6 +19,7 @@
     .container {
       display: flex;
       gap: 16px;
+      width: 100%;  
     }
 
     .left-panel {
@@ -47,6 +48,10 @@
       cursor: crosshair;
     }
 
+    #mainCanvas {
+      touch-action: none;
+    }
+    
     .counts {
       font-size: 13px;
       margin-left: 4px;
@@ -170,6 +175,57 @@ body.dark-mode #settingsPanel input[type="radio"] {
   border: 1px solid #555 !important;
 }
     
+@media (max-width: 600px) {
+
+  body {
+    padding: 8px;
+  }
+
+  .container {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .left-panel {
+    width: 100% !important;
+  }
+
+  #mainCanvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .controls {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #rangeControls {
+    font-size: 11px;
+  }
+
+  #rangeControls > div {
+    flex-wrap: wrap;
+  }
+
+  #shortcutSelect {
+    max-width: 160px;
+  }
+
+  .right-panel {
+    width: 100% !important;
+    min-width: unset !important;;
+  }
+
+  table {
+    font-size: 10px;
+  }
+
+  .preset-actions {
+    flex-wrap: wrap;
+  }
+}
+    
   </style>
 </head>
 
@@ -248,6 +304,7 @@ body.dark-mode #settingsPanel input[type="radio"] {
       <option value="hinaMizugiEX">ヒナ（水着）EX</option>
       <option value="hinataMizugiNS">ヒナタ（水着）NS</option>
       <option value="hibikiEX">ヒビキEX</option>
+      <option value="hibikiNS">ヒビキNS</option>
       <option value="hihumiEX">ヒフミEX</option>
       <option value="hiyoriMizugiEX">ヒヨリ（水着）EX</option>
       <option value="hoshinoRinsenEX">ホシノ（臨戦）EX</option>
@@ -892,6 +949,7 @@ const presetDefaultEnabled = {
   hinaMizugiEX: true,
   hinataMizugiNS: false,
   hibikiEX: true,
+  hibikiNS: true,
   hihumiEX: false,
   hiyoriMizugiEX: false,
   hoshinoRinsenEX: true,
@@ -965,7 +1023,9 @@ const rangePresets = {
   
   mutsukiNewyearEX: { shape: "ringSector", center: "self", params: { inner: 550, outer: 1100, angleDeg: 90  } },
 
-  hibikiEX:      { shape: "hibikiEX", center: "nearestOpp", params: {} },
+  hibikiEX:      { shape: "hibiki", center: "nearestOpp", params: {} },
+
+  hibikiNS: { shape: "hibiki", center: "self", params: {} },
 
   ioriEX:        { shape: "sector", center: "nearestOpp",
                    params: { radius: 250, angleDeg: 60 } },
@@ -1154,7 +1214,32 @@ function drawHibikiEX(centerB, angleDeg, color) {
 
   ctx.restore();
 }
+  
+function handleHibikiNS(self, scale) {
 
+  // ▼ 基準点とは逆の色
+  const color = (self.color === "red") ? COLOR_BLUE_LIGHT : COLOR_RED_LIGHT;
+
+  // ▼ 基準点（self）とは逆の部隊
+  const others = getOppositePointsByColor(self.color);
+  if (!others.length) return;
+
+  // ▼ 逆部隊の重心
+  const centroid = computeCentroid(others.filter(p => p.id !== 5));
+  if (!centroid) return;
+
+  // ▼ 重心 → 基準点 の角度
+  const dx = self.x - centroid.x;
+  const dy = self.y - centroid.y;
+  let angleRad = Math.atan2(dy, dx);
+
+  // ▼ 反時計回りに回転
+  angleRad += (10 * Math.PI / 180);
+
+  // ▼ ヒビキEXパターンを基準点中心に描画
+  drawHibikiEX(self, angleRad * 180 / Math.PI, color);
+}
+  
 /* ▼ 特殊スキルのディスパッチテーブル */
 const specialHandlers = {
   reisaMagicEX: handleReisaMagicEX,
@@ -1163,7 +1248,8 @@ const specialHandlers = {
   marinaEX: handleMarinaEX,
   harunaNewyearEX: handleHarunaNewyearEX,
   yuzuNS: handleYuzuNS,
-  shunEXAA: handleShunEXAA
+  shunEXAA: handleShunEXAA,
+  hibikiNS: handleHibikiNS
 };
 
 function handleReisaMagicEX(self, scale) {
@@ -1680,6 +1766,100 @@ canvas.addEventListener("mousemove", e => {
   })
 );
 
+/* =========================
+   スマホ版タッチ操作（タップ＝追加、ダブルタップ＝削除、ドラッグ＝移動）
+   ========================= */
+
+let lastTapTime = 0;
+let touchMoved = false;
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault(); // スクロール防止
+
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const cx = t.clientX - rect.left;
+  const cy = t.clientY - rect.top;
+
+  touchMoved = false;
+  touchStartX = cx;
+  touchStartY = cy;
+
+  const now = Date.now();
+  const hit = findPointAtCanvasPos(cx, cy);
+
+  // ▼ ダブルタップ判定（300ms以内）
+  if (now - lastTapTime < 300) {
+    if (hit) {
+      removePoint(hit);
+      redraw();
+      updateTablesFromPoints();
+      updateCounts();
+    }
+    lastTapTime = 0;
+    return;
+  }
+
+  lastTapTime = now;
+
+  // ▼ ドラッグ開始
+  if (hit) {
+    const logical = canvasToLogical(cx, cy);
+    dragState.active = true;
+    dragState.point = hit;
+    dragState.offsetX = hit.x - logical.x;
+    dragState.offsetY = hit.y - logical.y;
+  }
+});
+
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault(); // スクロール防止
+
+  if (!dragState.active || !dragState.point) return;
+
+  touchMoved = true;
+
+  const t = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  const cx = t.clientX - rect.left;
+  const cy = t.clientY - rect.top;
+
+  const logical = canvasToLogical(cx, cy);
+  dragState.point.x = logical.x + dragState.offsetX;
+  dragState.point.y = logical.y + dragState.offsetY;
+
+  redraw();
+  updateTablesFromPoints();
+});
+
+canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+
+  // ▼ ドラッグしていない → タップ扱い
+  if (!touchMoved) {
+    const rect = canvas.getBoundingClientRect();
+    const t = e.changedTouches[0];
+    const cx = t.clientX - rect.left;
+    const cy = t.clientY - rect.top;
+
+    const hit = findPointAtCanvasPos(cx, cy);
+
+    // ダブルタップで削除済みなら追加しない
+    if (!hit) {
+      const logical = canvasToLogical(cx, cy);
+      addPoint(currentColor, logical.x, logical.y);
+      redraw();
+      updateTablesFromPoints();
+      updateCounts();
+    }
+  }
+
+  dragState.active = false;
+  dragState.point = null;
+});
+
 canvas.addEventListener("dblclick", e => {
   const rect = canvas.getBoundingClientRect();
   const cx = e.clientX - rect.left;
@@ -1908,6 +2088,8 @@ Array.from(shortcutSelect.options).forEach(opt => {
   presetFilterList.appendChild(label);
 });
 
+updateShortcutSelect();
+  
 function updateShortcutSelect() {
   const filters = document.querySelectorAll(".preset-filter");
   const allowed = ["manual"];
@@ -1955,6 +2137,23 @@ document.querySelectorAll(".preset-filter").forEach(cb =>
 updateTablesFromPoints();  
 updateCounts?.();  // updateCounts が定義済みなら呼ぶ
 redraw();
+
+function resizeCanvasForMobile() {
+  if (window.innerWidth <= 600) {
+    const w = document.getElementById("canvasWrapper").clientWidth - 4;
+    const ratio = canvas.height / canvas.width;
+    canvas.width = w;
+    canvas.height = w * ratio;
+  } else {
+    canvas.width = 800;
+    canvas.height = 520;
+  }
+  redraw();
+}
+
+window.addEventListener("resize", resizeCanvasForMobile);
+resizeCanvasForMobile();
+  
 </script>
   
 </body>
