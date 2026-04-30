@@ -230,7 +230,7 @@ body.dark-mode #settingsPanel input[type="radio"] {
 </head>
 
 <body>
-  <h1>ホル式戦術対抗戦マップ　-シッテムの箱-</h1>
+  <h1>ホル式戦術対抗戦マップ　-シッテムの箱- </h1>
   
   <div class="container">
     <div class="left-panel">
@@ -1917,6 +1917,47 @@ btnReset.addEventListener("click", () => {
 /* =========================
    ③ 保存・読み込み系
    ========================= */
+function savePreset(id, name, data) {
+  const obj = { name, data };
+  localStorage.setItem("preset_" + id, JSON.stringify(obj));
+}
+
+function getCurrentCoordinates() {
+  const redArr = [1,2,3,4].map(id => {
+    const p = redPoints.find(pt => pt.id === id);
+    return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
+  });
+
+  const blueArr = [1,2,3,4].map(id => {
+    const p = bluePoints.find(pt => pt.id === id);
+    return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
+  });
+
+  return { red: redArr, blue: blueArr };
+}
+
+function applyPresetData(data) {
+  redPoints = [];
+  bluePoints = [];
+
+  data.red.forEach((p, i) => {
+    if (p.x !== 0 || p.y !== 0) {
+      redPoints.push({ id: i + 1, color: "red", x: p.x, y: p.y });
+    }
+  });
+
+  data.blue.forEach((p, i) => {
+    if (p.x !== 0 || p.y !== 0) {
+      bluePoints.push({ id: i + 1, color: "blue", x: p.x, y: p.y });
+    }
+  });
+
+  basePoint = null;
+  updateTablesFromPoints();
+  updateCounts();
+  redraw();
+}
+  
 btnSave.addEventListener("click", () => {
   const redArr = [1,2,3,4].flatMap(id => {
     const p = redPoints.find(pt => pt.id === id);
@@ -2158,3 +2199,4 @@ resizeCanvasForMobile();
   
 </body>
 </html>
+
