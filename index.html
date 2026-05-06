@@ -378,7 +378,7 @@ body.dark-mode #iconModalTitle {
 </head>
 
 <body>
-  <h1>ホル式戦術対抗戦マップ　-シッテムの箱- </h1>
+  <h1>ホル式戦術対抗戦マップ　-シッテムの箱- 2054</h1>
   
   <div class="container">
     <div class="left-panel">
@@ -2227,8 +2227,11 @@ function drawIconArrows() {
 
   allPoints.forEach(p => {
     const key = `${p.color}_${p.id}`;
-    const filename = iconAssignments[key];
-    if (!filename) return;
+    const entry = iconAssignments[key];
+    if (!entry) return;
+
+    // entry は {filename, folder} オブジェクト、または後方互換の文字列
+    const filename = typeof entry === "string" ? entry : entry.filename;
 
     const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
 
@@ -2289,7 +2292,7 @@ function drawIconArrows() {
     ctx.restore();
 
     // アイコン画像（角丸クリップ）
-    const img = loadIconImage(findIconEntry(filename));
+    const img = loadIconImage(typeof entry === "string" ? findIconEntry(entry) : entry);
     if (img.complete && img.naturalWidth > 0) {
       ctx.save();
       ctx.beginPath();
@@ -2491,7 +2494,8 @@ function renderIconGrid(filter) {
 
     cell.addEventListener("click", () => {
       if (iconTargetPoint) {
-        iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`] = entry.filename;
+        // フォルダ情報ごと保持する
+        iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`] = entry;
         loadIconImage(entry);
         redraw();
       }
@@ -2822,8 +2826,11 @@ function applyPresetData(data) {
 
   // アイコン割り当てを復元（保存データに含まれている場合）
   iconAssignments = (data.icons && typeof data.icons === "object") ? { ...data.icons } : {};
-  // プリロード
-  Object.values(iconAssignments).forEach(f => f && loadIconImage(findIconEntry(f)));
+  // プリロード（entryオブジェクト・文字列どちらでも対応）
+  Object.values(iconAssignments).forEach(e => {
+    if (!e) return;
+    loadIconImage(typeof e === "string" ? findIconEntry(e) : e);
+  });
 
   basePoint = null;
   updateTablesFromPoints();
@@ -2871,15 +2878,19 @@ function generateShareUrl() {
   const bPart = coords.blue.map(p => `${p.x},${p.y}`).join(",");
 
   // アイコン割り当てをコンパクトにシリアライズ
-  // 形式: I,red_1:tsubaki.png|blue_2:hibiki.png
+  // 形式: I,red_1:folder/filename|blue_2:folder/filename
   // ファイル名はURIエンコードしてカタカナ等の非ASCII文字に対応
   const iconEntries = Object.entries(iconAssignments)
     .filter(([, v]) => v)
-    .map(([k, v]) => `${k}:${encodeURIComponent(v)}`)
+    .map(([k, v]) => {
+      const folder   = typeof v === "string" ? "students" : v.folder;
+      const filename = typeof v === "string" ? v : v.filename;
+      return `${k}:${folder}/${encodeURIComponent(filename)}`;
+    })
     .join("|");
   const iPart = iconEntries ? `,I,${iconEntries}` : "";
 
-  const hash = `#v2,R,${rPart},B,${bPart}${iPart}`;
+  const hash = `#v3,R,${rPart},B,${bPart}${iPart}`;
   const url = location.href.split("#")[0] + hash;
   return url;
 }
@@ -2888,10 +2899,10 @@ function loadFromUrlHash() {
   const hash = location.hash;
   if (!hash) return;
 
-  // v1互換（アイコンなし）
   const isV1 = hash.startsWith("#v1,");
   const isV2 = hash.startsWith("#v2,");
-  if (!isV1 && !isV2) return;
+  const isV3 = hash.startsWith("#v3,");
+  if (!isV1 && !isV2 && !isV3) return;
 
   try {
     // 座標部分をパース
@@ -2920,20 +2931,34 @@ function loadFromUrlHash() {
     redPoints  = toPoints(rNums, "red");
     bluePoints = toPoints(bNums, "blue");
 
-    // アイコン割り当てをパース（v2のみ）
+    // アイコン割り当てをパース
     iconAssignments = {};
-    if (isV2) {
+    if (isV2 || isV3) {
       const iMatch = hash.match(/,I,(.+)$/);
       if (iMatch) {
-        iMatch[1].split("|").forEach(entry => {
-          const colonIdx = entry.indexOf(":");
-          if (colonIdx > 0) {
-            const key = entry.slice(0, colonIdx);
-            const val = decodeURIComponent(entry.slice(colonIdx + 1));
-            if (key && val) iconAssignments[key] = val;
+        iMatch[1].split("|").forEach(raw => {
+          const colonIdx = raw.indexOf(":");
+          if (colonIdx <= 0) return;
+          const key     = raw.slice(0, colonIdx);
+          const valRaw  = raw.slice(colonIdx + 1);
+          if (!key || !valRaw) return;
+
+          if (isV3) {
+            // v3: folder/filename 形式
+            const slashIdx = valRaw.indexOf("/");
+            if (slashIdx > 0) {
+              const folder   = valRaw.slice(0, slashIdx);
+              const filename = decodeURIComponent(valRaw.slice(slashIdx + 1));
+              iconAssignments[key] = { filename, folder };
+              loadIconImage({ filename, folder });
+            }
+          } else {
+            // v2後方互換: filenameのみ（studentsフォルダと仮定）
+            const filename = decodeURIComponent(valRaw);
+            iconAssignments[key] = { filename, folder: "students" };
+            loadIconImage({ filename, folder: "students" });
           }
         });
-        Object.values(iconAssignments).forEach(f => f && loadIconImage(findIconEntry(f)));
       }
     }
 
