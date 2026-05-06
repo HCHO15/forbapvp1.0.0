@@ -2128,37 +2128,63 @@ let isIconModeOn = false;
 // ロード済み画像キャッシュ
 const iconImageCache = {};
 
-// GitHubリポジトリ情報（students/フォルダのファイル一覧をAPIで取得）
-const GITHUB_API_URL = "https://api.github.com/repos/HCHO15/forpvp2.3.0/contents/students";
-const ICON_BASE_URL   = "students/";
+// GitHubリポジトリ情報
+const GITHUB_API_URL     = "https://api.github.com/repos/HCHO15/forpvp2.3.0/contents/students";
+const GITHUB_API_URL_SUB = "https://api.github.com/repos/HCHO15/forpvp2.3.0/contents/studentssub";
 
-let allIconFiles = []; // ["tsubaki.png", "hibiki.png", ...]
+// アイコンエントリ: { filename, folder } の配列
+// folder は "students" または "studentssub"
+let allIconFiles = [];
 
-/** GitHub API でアイコンファイル一覧を取得 */
-async function fetchIconFileList() {
-  try {
-    const res = await fetch(GITHUB_API_URL);
-    if (!res.ok) throw new Error("API error: " + res.status);
-    const json = await res.json();
-    allIconFiles = json
-      .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name))
-      .map(f => f.name)
-      .sort();
-  } catch (e) {
-    console.warn("アイコン一覧の取得に失敗しました:", e);
-    allIconFiles = [];
-  }
+/** ファイル名からパスを返す */
+function iconSrc(entry) {
+  if (typeof entry === "string") return "students/" + encodeURIComponent(entry); // 後方互換
+  return `${entry.folder}/${encodeURIComponent(entry.filename)}`;
 }
 
-/** 画像を非同期でプリロード（キャッシュ済みなら即返す）*/
-function loadIconImage(filename) {
+/** GitHub API でアイコンファイル一覧を両フォルダから取得し結合 */
+async function fetchIconFileList() {
+  const fetchFolder = async (url, folder) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("API error: " + res.status);
+      const json = await res.json();
+      return json
+        .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name))
+        .map(f => ({ filename: f.name, folder }))
+        .sort((a, b) => a.filename.localeCompare(b.filename, "ja"));
+    } catch (e) {
+      console.warn(`アイコン一覧の取得に失敗しました (${folder}):`, e);
+      return [];
+    }
+  };
+
+  const [main, sub] = await Promise.all([
+    fetchFolder(GITHUB_API_URL,     "students"),
+    fetchFolder(GITHUB_API_URL_SUB, "studentssub"),
+  ]);
+
+  // studentsを先、studentssub を後に結合
+  allIconFiles = [...main, ...sub];
+}
+
+/** 画像を非同期でプリロード（キャッシュ済みなら即返す）
+ *  entry は {filename, folder} または後方互換のためのファイル名文字列 */
+function loadIconImage(entry) {
+  const filename = typeof entry === "string" ? entry : entry.filename;
   if (iconImageCache[filename]) return iconImageCache[filename];
   const img = new Image();
-  img.src = ICON_BASE_URL + encodeURIComponent(filename);
+  img.src = iconSrc(entry);
   img.onload  = () => redraw();
   img.onerror = () => {};
   iconImageCache[filename] = img;
   return img;
+}
+
+/** ファイル名からエントリを逆引き（プリセット・URL復元時に使用）*/
+function findIconEntry(filename) {
+  return allIconFiles.find(e => e.filename === filename)
+      || { filename, folder: "students" }; // フォールバック
 }
 
 /**
@@ -2263,7 +2289,7 @@ function drawIconArrows() {
     ctx.restore();
 
     // アイコン画像（角丸クリップ）
-    const img = loadIconImage(filename);
+    const img = loadIconImage(findIconEntry(filename));
     if (img.complete && img.naturalWidth > 0) {
       ctx.save();
       ctx.beginPath();
@@ -2435,7 +2461,7 @@ function renderIconGrid(filter) {
   grid.appendChild(noneCell);
 
   const filtered = filter
-    ? allIconFiles.filter(f => f.toLowerCase().includes(filter.toLowerCase()))
+    ? allIconFiles.filter(e => e.filename.toLowerCase().includes(filter.toLowerCase()))
     : allIconFiles;
 
   if (filtered.length === 0) {
@@ -2446,27 +2472,27 @@ function renderIconGrid(filter) {
     return;
   }
 
-  filtered.forEach(filename => {
+  filtered.forEach(entry => {
     const cell = document.createElement("div");
     cell.className = "icon-cell";
 
     const img = document.createElement("img");
-    img.src = ICON_BASE_URL + encodeURIComponent(filename);
-    img.alt = filename;
+    img.src = iconSrc(entry);
+    img.alt = entry.filename;
     img.loading = "lazy";
 
     const label = document.createElement("div");
     label.className = "icon-label";
-    label.textContent = filename.replace(/\.[^.]+$/, ""); // 拡張子を除いたキャラ名
-    label.title = filename;
+    label.textContent = entry.filename.replace(/\.[^.]+$/, "");
+    label.title = entry.filename;
 
     cell.appendChild(img);
     cell.appendChild(label);
 
     cell.addEventListener("click", () => {
       if (iconTargetPoint) {
-        iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`] = filename;
-        loadIconImage(filename);
+        iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`] = entry.filename;
+        loadIconImage(entry);
         redraw();
       }
       closeIconModal();
@@ -2797,7 +2823,7 @@ function applyPresetData(data) {
   // アイコン割り当てを復元（保存データに含まれている場合）
   iconAssignments = (data.icons && typeof data.icons === "object") ? { ...data.icons } : {};
   // プリロード
-  Object.values(iconAssignments).forEach(f => f && loadIconImage(f));
+  Object.values(iconAssignments).forEach(f => f && loadIconImage(findIconEntry(f)));
 
   basePoint = null;
   updateTablesFromPoints();
@@ -2907,7 +2933,7 @@ function loadFromUrlHash() {
             if (key && val) iconAssignments[key] = val;
           }
         });
-        Object.values(iconAssignments).forEach(f => f && loadIconImage(f));
+        Object.values(iconAssignments).forEach(f => f && loadIconImage(findIconEntry(f)));
       }
     }
 
