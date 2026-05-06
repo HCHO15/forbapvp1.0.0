@@ -175,6 +175,140 @@ body.dark-mode #settingsPanel input[type="radio"] {
   border: 1px solid #555 !important;
 }
     
+/* ============================
+   アイコン選択モーダル
+   ============================ */
+#iconModal {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+#iconPanel {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  width: 480px;
+  max-width: 95vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+
+#iconSearchInput {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+#iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 55vh;
+  padding: 4px;
+}
+
+.icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  padding: 4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.icon-cell:hover {
+  border-color: #1e88e5;
+  background: #e3f2fd;
+}
+
+.icon-cell img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.icon-cell .icon-label {
+  font-size: 9px;
+  color: #555;
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.2;
+  max-width: 60px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.icon-cell.icon-none {
+  border: 2px dashed #aaa;
+  color: #888;
+  font-size: 11px;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.icon-cell.icon-none:hover {
+  border-color: #e53935;
+  background: #ffebee;
+  color: #e53935;
+}
+
+#iconModalTitle {
+  font-weight: bold;
+  font-size: 14px;
+  color: #333;
+}
+
+#iconModalClose {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #888;
+  padding: 0 4px;
+}
+
+body.dark-mode #iconPanel {
+  background: #222;
+  color: #eee;
+}
+
+body.dark-mode #iconSearchInput {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+body.dark-mode .icon-cell .icon-label {
+  color: #aaa;
+}
+
+body.dark-mode .icon-cell:hover {
+  background: #1a3a5c;
+}
+
+body.dark-mode #iconModalTitle {
+  color: #eee;
+}
+
 @media (max-width: 600px) {
 
   body {
@@ -253,6 +387,7 @@ body.dark-mode #settingsPanel input[type="radio"] {
         <button id="btnColor">現在：赤 → 青に切り替え</button>
         <button id="btnReset">リセット</button>
         <button id="btnSave">画像保存</button>
+        <button id="btnCopyUrl">🔗 URLをコピー</button>
 
         <select id="modeSelect">
           <option value="0">攻撃SP</option>
@@ -568,46 +703,66 @@ body.dark-mode #settingsPanel input[type="radio"] {
             このツールの使い方（クリックで開く）
           </summary>
           <div style="padding: 8px 12px; background: #fafafa; border: 1px solid #ddd; border-radius: 4px; margin-top: 6px; font-size: 14px; line-height: 1.6;">
-            <p><strong>ホル式戦術対抗戦マップ　-シッテムの箱-</strong>は、マップ上に生徒を表す赤点・青点を配置し、位置関係・部隊重心・最短距離・範囲攻撃などを視覚的に確認できる戦術対抗戦支援ツールです</p>
+            <p><strong>ホル式戦術対抗戦マップ　-シッテムの箱-</strong>は、マップ上に生徒を表す赤点・青点を配置し、位置関係・部隊重心・最短距離・スキル範囲などを視覚的に確認できる戦術対抗戦支援ツールです。</p>
 
             <h4>■ 基本操作</h4>
             <ul>
-              <li><strong>左クリック：</strong> 点を追加します</li>
-              <li><strong>ドラッグ：</strong> 点を移動します</li>
-              <li><strong>右クリック：</strong> 点を削除します</li>
-              <li><strong>色切り替え：</strong> 赤 ↔ 青 を変更します</li>
+              <li><strong>左クリック：</strong>点を追加します（赤/青は「色切り替え」ボタンで変更）</li>
+              <li><strong>ドラッグ：</strong>点を移動します</li>
+              <li><strong>右クリック：</strong>点を削除します</li>
+              <li><strong>ダブルクリック：</strong>点を基準点に設定します（座標表のラジオボタンでも可）</li>
+              <li><strong>召喚物を考慮：</strong>チェックを入れると各チーム最大5点まで配置できます（5点目は☆表示）</li>
             </ul>
 
-            <h4>■ 基準点の選択</h4>
+            <h4>■ モード（表示切り替え）</h4>
             <ul>
-              <li>座標表の <strong>ラジオボタン</strong> をクリックしてください</li>
-              <li>または、キャンバス上の点を <strong>ダブルクリック</strong>してください</li>
+              <li><strong>攻撃SP：</strong>SPアタッカーの攻撃ターゲットを強調します</li>
+              <li><strong>バフSP：</strong>SPバッファーのバフターゲットを強調します</li>
+              <li><strong>攻撃ST：</strong>基準点に選んだSTの攻撃ターゲットを強調します</li>
+              <li><strong>バフST：</strong>基準点に選んだSTのバフターゲットを強調します</li>
+              <li><strong>範囲確認：</strong>基準点を中心にスキル範囲を描画します。半径・角度を手動調整するか、キャラクターのショートカットプリセットから選択できます</li>
             </ul>
 
-            <h4>■ サブ機能（モード）</h4>
+            <h4>■ 配置プリセット</h4>
             <ul>
-              <li><strong>攻撃SP：</strong> SPアタッカーのターゲット を強調します</li>
-              <li><strong>バフSP：</strong> SPバッファーのターゲット を強調します</li>
-              <li><strong>攻撃ST：</strong> 基準点に選択したSTの攻撃ターゲット を強調します</li>
-              <li><strong>バフST：</strong> 基準点に選択したSTのバフターゲット を強調します</li>
-              <li><strong>範囲確認：</strong> 基準点に選択したSTまたは同部隊SPのスキル範囲を描画します（半径・角度調整可）</li>
+              <li>右パネルの「現在の配置を保存」で現在の赤青両チームの配置をプリセットとして保存します</li>
+              <li>「適用」で保存した配置を呼び出し、「削除」で削除します</li>
+              <li>プリセットは1〜12番まで、タブで3枠ずつ切り替えて管理できます</li>
+              <li>キャラアイコンの割り当て情報もプリセットに含まれます</li>
             </ul>
 
-            <h4>■ その他</h4>
+            <h4>■ URL共有</h4>
             <ul>
-              <li><strong>画像保存：</strong> 現在の配置をPNGで保存します</li>
-              <li><strong>ショートカット：</strong> ツバキなど主な範囲スキルのプリセットです</li>
+              <li>「🔗 URLをコピー」ボタンで現在の配置をURLとしてコピーします</li>
+              <li>そのURLを開くと配置が自動で復元されます</li>
+              <li>キャラアイコンの割り当て情報もURLに含まれます</li>
             </ul>
 
-            <p>直感的に操作できるよう設計されています。ぜひ自由に触ってみてください。</p>
+            <h4>■ キャラアイコン表示</h4>
+            <ul>
+              <li>設定から「キャラアイコン表示」をONにすると使用できます</li>
+              <li><strong>Shift+点クリック：</strong>アイコン選択ウィンドウが開きます。キャラ名で絞り込み検索もできます</li>
+              <li>割り当てたアイコンは点から矢印が伸びた先に表示されます</li>
+              <li><strong>Shift+アイコンドラッグ：</strong>アイコンの表示位置を自由に移動できます</li>
+              <li>アイコンを持つ点をドラッグで移動すると、アイコン位置は自動配置に戻ります</li>
+            </ul>
+
+            <h4>■ 設定</h4>
+            <ul>
+              <li><strong>ダークモード：</strong>ON/OFFを切り替えます</li>
+              <li><strong>遮蔽物表示：</strong>マップ上の遮蔽物レイヤーの表示/非表示を切り替えます</li>
+              <li><strong>範囲確認プリセットの表示：</strong>範囲確認モードのキャラクタープリセット一覧に表示するキャラを選択できます</li>
+              <li><strong>キャラアイコン表示：</strong>アイコン機能のON/OFFを切り替えます</li>
+            </ul>
+
             <p>不具合報告や新機能の実装希望はこちらまで↓</p>
-     　　　 <p>
-  <a href="https://docs.google.com/forms/d/e/1FAIpQLSfYnSxyBftTE8hRrijhFfLnJLUf-vUuWeSvyoZkx_JFScHDNg/viewform?usp=dialog"
-     target="_blank"
-     style="color:#1e88e5; text-decoration: underline;">
-    シッテムの箱フィードバック
-  </a>
-</p>
+            <p>
+              <a href="https://docs.google.com/forms/d/e/1FAIpQLSfYnSxyBftTE8hRrijhFfLnJLUf-vUuWeSvyoZkx_JFScHDNg/viewform?usp=dialog"
+                 target="_blank"
+                 style="color:#1e88e5; text-decoration: underline;">
+                シッテムの箱フィードバック
+              </a>
+            </p>
           </div>
         </details>
       </div>
@@ -661,13 +816,51 @@ body.dark-mode #settingsPanel input[type="radio"] {
   </div>
 </div>
     
+    <div style="margin-bottom:12px;">
+      <div><strong>キャラアイコン表示</strong></div>
+      <label><input type="radio" name="iconMode" value="off" checked> OFF</label><br>
+      <label><input type="radio" name="iconMode" value="on"> ON（Shift+クリックで割り当て）</label>
+    </div>
+
     <button id="btnSettingsClose">閉じる</button>
+  </div>
+</div>
+
+<!-- アイコン選択モーダル -->
+<div id="iconModal">
+  <div id="iconPanel">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span id="iconModalTitle">キャラを選択</span>
+      <button id="iconModalClose">✕</button>
+    </div>
+    <input type="text" id="iconSearchInput" placeholder="ファイル名で絞り込み…">
+    <div id="iconGrid">
+      <div style="color:#888; font-size:12px; padding:8px;">読み込み中…</div>
+    </div>
   </div>
 </div>
   
 <script>
 const canvas = document.getElementById("mainCanvas");
 const ctx = canvas.getContext("2d");
+
+// roundRect ポリフィル（Safari 15以前など古いブラウザ向け）
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
+    this.beginPath();
+    this.moveTo(x + radius, y);
+    this.lineTo(x + w - radius, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + radius);
+    this.lineTo(x + w, y + h - radius);
+    this.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    this.lineTo(x + radius, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - radius);
+    this.lineTo(x, y + radius);
+    this.quadraticCurveTo(x, y, x + radius, y);
+    this.closePath();
+  };
+}
 const width = canvas.width;
 const height = canvas.height;
 
@@ -897,6 +1090,10 @@ function removePoint(p) {
   if (basePoint && basePoint.color === p.color && basePoint.id === p.id) {
     basePoint = null;
   }
+
+  // アイコン割り当てとオフセットも解除
+  delete iconAssignments[`${p.color}_${p.id}`];
+  delete iconOffsets[`${p.color}_${p.id}`];
 }
 
 function findPointAtCanvasPos(cx, cy) {
@@ -1914,8 +2111,349 @@ function updateCounts() {
     `赤点：${redPoints.length}/${MAX_POINTS}　青点：${bluePoints.length}/${MAX_POINTS}`;
 }
   
+/* =========================
+   ⑨ キャラアイコン機能
+   ========================= */
+
+// 各点のアイコン割り当て: キー = "red_1" / "blue_3" など、値 = ファイル名("tsubaki.png")
+let iconAssignments = {};
+
+// 各点のアイコン手動オフセット: キー = "red_1" など、値 = {cx, cy}（Canvas座標の点からの相対値）
+// 値が存在しない場合は自動方向計算を使う
+let iconOffsets = {};
+
+// アイコン表示ON/OFFフラグ
+let isIconModeOn = false;
+
+// ロード済み画像キャッシュ
+const iconImageCache = {};
+
+// GitHubリポジトリ情報（students/フォルダのファイル一覧をAPIで取得）
+const GITHUB_API_URL = "https://api.github.com/repos/HCHO15/forpvp2.3.0/contents/students";
+const ICON_BASE_URL   = "students/";
+
+let allIconFiles = []; // ["tsubaki.png", "hibiki.png", ...]
+
+/** GitHub API でアイコンファイル一覧を取得 */
+async function fetchIconFileList() {
+  try {
+    const res = await fetch(GITHUB_API_URL);
+    if (!res.ok) throw new Error("API error: " + res.status);
+    const json = await res.json();
+    allIconFiles = json
+      .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name))
+      .map(f => f.name)
+      .sort();
+  } catch (e) {
+    console.warn("アイコン一覧の取得に失敗しました:", e);
+    allIconFiles = [];
+  }
+}
+
+/** 画像を非同期でプリロード（キャッシュ済みなら即返す）*/
+function loadIconImage(filename) {
+  if (iconImageCache[filename]) return iconImageCache[filename];
+  const img = new Image();
+  img.src = ICON_BASE_URL + encodeURIComponent(filename);
+  img.onload  = () => redraw();
+  img.onerror = () => {};
+  iconImageCache[filename] = img;
+  return img;
+}
+
+/**
+ * 点の位置からアイコンを表示する方向ベクトルを決定する。
+ * キャンバスの9分割グリッドを使い、端寄りになるよう調整。
+ * 他の矢印との重なりを最小化するため、同じ陣営内で方向が被らないよう調整する。
+ */
+function getIconDirection(point, allPoints) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const { cx, cy } = logicalToCanvas(point.x, point.y);
+
+  // キャンバスを3×3に分割してどのセルにいるか
+  const col = cx < W / 3 ? 0 : cx < (W * 2) / 3 ? 1 : 2;
+  const row = cy < H / 3 ? 0 : cy < (H * 2) / 3 ? 1 : 2;
+
+  // セルに応じた「端方向」への基本ベクトル
+  // 端セル→外向き、中央セル→右下
+  const colDir = col === 0 ? -1 : col === 2 ? 1 : 1;
+  const rowDir = row === 0 ? -1 : row === 2 ? 1 : 1;
+
+  // 中央セルの場合は点の絶対位置から押し出し方向を決める
+  const fx = col === 1 ? (cx > W / 2 ? 1 : -1) : colDir;
+  const fy = row === 1 ? (cy > H / 2 ? 1 : -1) : rowDir;
+
+  // 正規化
+  const len = Math.sqrt(fx * fx + fy * fy);
+  return { dx: fx / len, dy: fy / len };
+}
+
+/** アイコン矢印とアイコン画像をCanvasに描画 */
+function drawIconArrows() {
+  if (!isIconModeOn) return;
+
+  const ARROW_LEN   = 70;   // 点からアイコン中心までの距離（自動方向時）
+  const ICON_SIZE   = 48;   // アイコン描画サイズ（40→48、約+20%）
+  const ICON_RADIUS = 24;   // アイコン角丸クリップ用
+
+  const allPoints = [...redPoints, ...bluePoints];
+
+  allPoints.forEach(p => {
+    const key = `${p.color}_${p.id}`;
+    const filename = iconAssignments[key];
+    if (!filename) return;
+
+    const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
+
+    // アイコン中心座標：手動オフセットがあればそれを使い、なければ自動計算
+    let ix, iy, dx, dy;
+    const offset = iconOffsets[key];
+    if (offset) {
+      ix = px + offset.cx;
+      iy = py + offset.cy;
+      const len = Math.sqrt(offset.cx * offset.cx + offset.cy * offset.cy) || 1;
+      dx = offset.cx / len;
+      dy = offset.cy / len;
+    } else {
+      const dir = getIconDirection(p, allPoints);
+      dx = dir.dx;
+      dy = dir.dy;
+      ix = px + dx * ARROW_LEN;
+      iy = py + dy * ARROW_LEN;
+    }
+
+    // 矢印の色（点の色系統で薄め）
+    const arrowColor = p.color === "red"
+      ? "rgba(229,57,53,0.45)"
+      : "rgba(30,136,229,0.45)";
+
+    // 矢印の線（点の端からアイコンの端まで）
+    const startX = px + dx * (POINT_RADIUS + 2);
+    const startY = py + dy * (POINT_RADIUS + 2);
+    const endX   = ix - dx * (ICON_SIZE / 2 + 2);
+    const endY   = iy - dy * (ICON_SIZE / 2 + 2);
+
+    ctx.save();
+    ctx.strokeStyle = arrowColor;
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // 矢印の先端（小さな三角）
+    const headLen  = 7;
+    const headAngle = Math.atan2(dy, dx);
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(
+      endX - headLen * Math.cos(headAngle - Math.PI / 7),
+      endY - headLen * Math.sin(headAngle - Math.PI / 7)
+    );
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(
+      endX - headLen * Math.cos(headAngle + Math.PI / 7),
+      endY - headLen * Math.sin(headAngle + Math.PI / 7)
+    );
+    ctx.stroke();
+    ctx.restore();
+
+    // アイコン画像（角丸クリップ）
+    const img = loadIconImage(filename);
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.beginPath();
+      const half = ICON_SIZE / 2;
+      ctx.roundRect(ix - half, iy - half, ICON_SIZE, ICON_SIZE, ICON_RADIUS);
+      ctx.clip();
+      ctx.drawImage(img, ix - half, iy - half, ICON_SIZE, ICON_SIZE);
+      ctx.restore();
+
+      // アイコン枠（点の色系統）
+      ctx.save();
+      ctx.strokeStyle = p.color === "red" ? COLOR_RED : COLOR_BLUE;
+      ctx.lineWidth   = 2;
+      ctx.beginPath();
+      ctx.roundRect(ix - half, iy - half, ICON_SIZE, ICON_SIZE, ICON_RADIUS);
+      ctx.stroke();
+      ctx.restore();
+
+      // 攻/防バッジ（_a → 攻、_d → 防）
+      const badgeLabel = filename.match(/_a\.[^.]+$/i) ? "攻"
+                       : filename.match(/_d\.[^.]+$/i) ? "防"
+                       : null;
+      if (badgeLabel) {
+        const bw = 18, bh = 16, br = 4;
+        const bx = ix + half - bw + 4;   // アイコン右端より少しはみ出す
+        const by = iy + half - bh + 4;   // アイコン下端より少しはみ出す
+        ctx.save();
+        ctx.fillStyle = "#DA9F01";
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, br);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 11px system-ui";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(badgeLabel, bx + bw / 2, by + bh / 2);
+        ctx.restore();
+      }
+    }
+  });
+}
+
+/* --- アイコン選択モーダル制御 --- */
+
+// アイコンドラッグ用の状態
+const iconDragState = {
+  active: false,
+  key: null,       // "red_1" など
+  point: null,     // 紐付いている点オブジェクト
+  startCx: 0,      // ドラッグ開始時のCanvas X
+  startCy: 0,
+};
+
+const ICON_SIZE_HIT = 48; // ヒット判定に使うアイコンサイズ（drawIconArrowsと合わせる）
+
+/** Canvas座標(cx,cy)にアイコンがあれば {key, point} を返す */
+function findIconAtCanvasPos(cx, cy) {
+  if (!isIconModeOn) return null;
+  const allPoints = [...redPoints, ...bluePoints];
+  const ARROW_LEN = 70;
+  const half = ICON_SIZE_HIT / 2;
+
+  for (const p of allPoints) {
+    const key = `${p.color}_${p.id}`;
+    if (!iconAssignments[key]) continue;
+
+    const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
+    let ix, iy;
+    const offset = iconOffsets[key];
+    if (offset) {
+      ix = px + offset.cx;
+      iy = py + offset.cy;
+    } else {
+      const dir = getIconDirection(p, allPoints);
+      ix = px + dir.dx * ARROW_LEN;
+      iy = py + dir.dy * ARROW_LEN;
+    }
+
+    if (cx >= ix - half && cx <= ix + half && cy >= iy - half && cy <= iy + half) {
+      return { key, point: p };
+    }
+  }
+  return null;
+}
+
+let iconTargetPoint = null; // 選択中の点
+
+function openIconModal(point) {
+  iconTargetPoint = point;
+  const label = point.color === "red" ? "赤" : "青";
+  document.getElementById("iconModalTitle").textContent =
+    `キャラを選択（${label}${point.id}番）`;
+
+  document.getElementById("iconSearchInput").value = "";
+  renderIconGrid("");
+  document.getElementById("iconModal").style.display = "flex";
+}
+
+function closeIconModal() {
+  document.getElementById("iconModal").style.display = "none";
+  iconTargetPoint = null;
+}
+
+function renderIconGrid(filter) {
+  const grid = document.getElementById("iconGrid");
+  grid.innerHTML = "";
+
+  // 「割り当て解除」セル
+  const noneCell = document.createElement("div");
+  noneCell.className = "icon-cell icon-none";
+  noneCell.textContent = "なし";
+  noneCell.addEventListener("click", () => {
+    if (iconTargetPoint) {
+      delete iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`];
+      redraw();
+    }
+    closeIconModal();
+  });
+  grid.appendChild(noneCell);
+
+  const filtered = filter
+    ? allIconFiles.filter(f => f.toLowerCase().includes(filter.toLowerCase()))
+    : allIconFiles;
+
+  if (filtered.length === 0) {
+    const msg = document.createElement("div");
+    msg.style.cssText = "color:#888; font-size:12px; padding:8px; grid-column:1/-1;";
+    msg.textContent = "該当なし";
+    grid.appendChild(msg);
+    return;
+  }
+
+  filtered.forEach(filename => {
+    const cell = document.createElement("div");
+    cell.className = "icon-cell";
+
+    const img = document.createElement("img");
+    img.src = ICON_BASE_URL + encodeURIComponent(filename);
+    img.alt = filename;
+    img.loading = "lazy";
+
+    const label = document.createElement("div");
+    label.className = "icon-label";
+    label.textContent = filename.replace(/\.[^.]+$/, ""); // 拡張子を除いたキャラ名
+    label.title = filename;
+
+    cell.appendChild(img);
+    cell.appendChild(label);
+
+    cell.addEventListener("click", () => {
+      if (iconTargetPoint) {
+        iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`] = filename;
+        loadIconImage(filename);
+        redraw();
+      }
+      closeIconModal();
+    });
+
+    grid.appendChild(cell);
+  });
+}
+
+document.getElementById("iconModalClose").addEventListener("click", closeIconModal);
+document.getElementById("iconModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("iconModal")) closeIconModal();
+});
+document.getElementById("iconSearchInput").addEventListener("input", e => {
+  renderIconGrid(e.target.value);
+});
+
+/* --- 設定パネルのON/OFF連動 --- */
+document.querySelectorAll("input[name='iconMode']").forEach(r =>
+  r.addEventListener("change", e => {
+    isIconModeOn = (e.target.value === "on");
+    // ONになった時点でアイコン一覧を取得（まだなら）
+    if (isIconModeOn && allIconFiles.length === 0) {
+      fetchIconFileList().then(() => {
+        // モーダルが開いていれば再レンダリング
+        if (document.getElementById("iconModal").style.display === "flex") {
+          renderIconGrid(document.getElementById("iconSearchInput").value);
+        }
+      });
+    }
+    redraw();
+  })
+);
+
 function redraw() {
   clearCanvas();
+  drawIconArrows();
   [...redPoints, ...bluePoints].forEach(drawPoint);
   applySubFunction();
 }
@@ -1930,6 +2468,30 @@ canvas.addEventListener("mousedown", e => {
 
   const hit = findPointAtCanvasPos(cx, cy);
 
+  // Shift+クリック / Shift+ドラッグ
+  if (e.button === 0 && e.shiftKey) {
+    if (!isIconModeOn) return;
+
+    // アイコン上をShift+ドラッグ → アイコン移動モード
+    const iconHit = findIconAtCanvasPos(cx, cy);
+    if (iconHit) {
+      e.preventDefault();
+      iconDragState.active = true;
+      iconDragState.key    = iconHit.key;
+      iconDragState.point  = iconHit.point;
+      iconDragState.startCx = cx;
+      iconDragState.startCy = cy;
+      return;
+    }
+
+    // 点上をShift+クリック → モーダルを開く
+    if (hit) {
+      e.preventDefault();
+      openIconModal(hit);
+    }
+    return;
+  }
+
   if (e.button === 0) {
     if (hit) {
       const logical = canvasToLogical(cx, cy);
@@ -1937,6 +2499,11 @@ canvas.addEventListener("mousedown", e => {
       dragState.point = hit;
       dragState.offsetX = hit.x - logical.x;
       dragState.offsetY = hit.y - logical.y;
+
+      // 点を動かしたらアイコンのオフセットをリセット→自動方向に戻す
+      const key = `${hit.color}_${hit.id}`;
+      delete iconOffsets[key];
+
       return;
     }
 
@@ -1956,11 +2523,20 @@ canvas.addEventListener("mousedown", e => {
 });
 
 canvas.addEventListener("mousemove", e => {
-  if (!dragState.active || !dragState.point) return;
-
   const rect = canvas.getBoundingClientRect();
   const cx = e.clientX - rect.left;
   const cy = e.clientY - rect.top;
+
+  // アイコンドラッグ中
+  if (iconDragState.active && iconDragState.key) {
+    const p = iconDragState.point;
+    const { cx: px, cy: py } = logicalToCanvas(p.x, p.y);
+    iconOffsets[iconDragState.key] = { cx: cx - px, cy: cy - py };
+    redraw();
+    return;
+  }
+
+  if (!dragState.active || !dragState.point) return;
 
   const logical = canvasToLogical(cx, cy);
   dragState.point.x = logical.x + dragState.offsetX;
@@ -1974,6 +2550,9 @@ canvas.addEventListener("mousemove", e => {
   canvas.addEventListener(ev, () => {
     dragState.active = false;
     dragState.point = null;
+    iconDragState.active = false;
+    iconDragState.key    = null;
+    iconDragState.point  = null;
   })
 );
 
@@ -2120,6 +2699,8 @@ btnReset.addEventListener("click", () => {
   redPoints = [];
   bluePoints = [];
   basePoint = null;
+  iconAssignments = {};
+  iconOffsets = {};
   redraw();
   updateTablesFromPoints();
   updateCounts();
@@ -2144,7 +2725,7 @@ function getCurrentCoordinates() {
     return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
   });
 
-  return { red: redArr, blue: blueArr };
+  return { red: redArr, blue: blueArr, icons: { ...iconAssignments } };
 }
 
 function applyPresetData(data) {
@@ -2162,6 +2743,11 @@ function applyPresetData(data) {
       bluePoints.push({ id: i + 1, color: "blue", x: p.x, y: p.y });
     }
   });
+
+  // アイコン割り当てを復元（保存データに含まれている場合）
+  iconAssignments = (data.icons && typeof data.icons === "object") ? { ...data.icons } : {};
+  // プリロード
+  Object.values(iconAssignments).forEach(f => f && loadIconImage(f));
 
   basePoint = null;
   updateTablesFromPoints();
@@ -2192,6 +2778,168 @@ btnSave.addEventListener("click", () => {
   link.href = canvas.toDataURL("image/png");
   link.click();
 });
+
+/* =========================
+   ⑧ URL共有機能
+   ========================= */
+
+/**
+ * 現在の配置をURLハッシュにエンコードしてコピーする。
+ * フォーマット: #v1,R,x1,y1,x2,y2,x3,y3,x4,y4,B,x1,y1,x2,y2,x3,y3,x4,y4
+ * 未配置の点は座標 0,0 で記録する。
+ */
+function generateShareUrl() {
+  const coords = getCurrentCoordinates();
+
+  const rPart = coords.red.map(p => `${p.x},${p.y}`).join(",");
+  const bPart = coords.blue.map(p => `${p.x},${p.y}`).join(",");
+
+  // アイコン割り当てをコンパクトにシリアライズ
+  // 形式: I,red_1:tsubaki.png|blue_2:hibiki.png
+  // ファイル名はURIエンコードしてカタカナ等の非ASCII文字に対応
+  const iconEntries = Object.entries(iconAssignments)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}:${encodeURIComponent(v)}`)
+    .join("|");
+  const iPart = iconEntries ? `,I,${iconEntries}` : "";
+
+  const hash = `#v2,R,${rPart},B,${bPart}${iPart}`;
+  const url = location.href.split("#")[0] + hash;
+  return url;
+}
+
+function loadFromUrlHash() {
+  const hash = location.hash;
+  if (!hash) return;
+
+  // v1互換（アイコンなし）
+  const isV1 = hash.startsWith("#v1,");
+  const isV2 = hash.startsWith("#v2,");
+  if (!isV1 && !isV2) return;
+
+  try {
+    // 座標部分をパース
+    const rMatch = hash.match(/R,([-\d,]+),B/);
+    const bMatch = hash.match(/B,([-\d,]+?)(?:,I,|$)/);
+
+    if (!rMatch || !bMatch) return;
+
+    const rNums = rMatch[1].split(",").map(Number);
+    const bNums = bMatch[1].split(",").map(Number);
+
+    if (rNums.length !== 8 || bNums.length !== 8) return;
+
+    const toPoints = (nums, color) => {
+      const result = [];
+      for (let i = 0; i < 4; i++) {
+        const x = nums[i * 2];
+        const y = nums[i * 2 + 1];
+        if (x !== 0 || y !== 0) {
+          result.push({ id: i + 1, color, x, y });
+        }
+      }
+      return result;
+    };
+
+    redPoints  = toPoints(rNums, "red");
+    bluePoints = toPoints(bNums, "blue");
+
+    // アイコン割り当てをパース（v2のみ）
+    iconAssignments = {};
+    if (isV2) {
+      const iMatch = hash.match(/,I,(.+)$/);
+      if (iMatch) {
+        iMatch[1].split("|").forEach(entry => {
+          const colonIdx = entry.indexOf(":");
+          if (colonIdx > 0) {
+            const key = entry.slice(0, colonIdx);
+            const val = decodeURIComponent(entry.slice(colonIdx + 1));
+            if (key && val) iconAssignments[key] = val;
+          }
+        });
+        Object.values(iconAssignments).forEach(f => f && loadIconImage(f));
+      }
+    }
+
+    basePoint = null;
+    updateTablesFromPoints();
+    updateCounts();
+    redraw();
+
+    setTimeout(() => {
+      showUrlToast("📍 URLから配置を復元しました");
+    }, 500);
+
+  } catch (e) {
+    console.warn("URLハッシュのパースに失敗しました:", e);
+  }
+}
+
+/** コピー完了などの一時メッセージを表示するトースト */
+function showUrlToast(message) {
+  let toast = document.getElementById("urlToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "urlToast";
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      z-index: 99999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.style.opacity = "1";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = "0";
+  }, 2500);
+}
+
+document.getElementById("btnCopyUrl").addEventListener("click", () => {
+  const url = generateShareUrl();
+
+  // クリップボードにコピー
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      showUrlToast("✅ URLをクリップボードにコピーしました");
+    }).catch(() => {
+      // フォールバック
+      fallbackCopyUrl(url);
+    });
+  } else {
+    fallbackCopyUrl(url);
+  }
+});
+
+function fallbackCopyUrl(url) {
+  const ta = document.createElement("textarea");
+  ta.value = url;
+  ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+    showUrlToast("✅ URLをクリップボードにコピーしました");
+  } catch {
+    showUrlToast("⚠️ コピーに失敗しました。手動でURLをコピーしてください");
+  }
+  document.body.removeChild(ta);
+}
+
+// ページロード時にハッシュがあれば配置を復元
+window.addEventListener("load", loadFromUrlHash);
 
 document.querySelectorAll(".preset-save").forEach(btn => {
   btn.addEventListener("click", e => {
