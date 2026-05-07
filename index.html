@@ -2136,9 +2136,20 @@ const ICON_BASE_URL  = "students/";
 // folder は "students" または "studentssub"
 let allIconFiles = [];
 
-/** ファイル名が _n.拡張子 で終わるか判定 */
-function isSubIcon(filename) {
-  return /_n\.[^.]+$/i.test(filename);
+/** GitHub API でアイコンファイル一覧を取得し五十音順に並べる */
+async function fetchIconFileList() {
+  try {
+    const res = await fetch(GITHUB_API_URL);
+    if (!res.ok) throw new Error("API error: " + res.status);
+    const json = await res.json();
+    allIconFiles = json
+      .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name))
+      .map(f => ({ filename: f.name, folder: "students" }))
+      .sort((a, b) => a.filename.localeCompare(b.filename, "ja"));
+  } catch (e) {
+    console.warn("アイコン一覧の取得に失敗しました:", e);
+    allIconFiles = [];
+  }
 }
 
 /** ファイル名からパスを返す */
@@ -2147,54 +2158,21 @@ function iconSrc(entry) {
   return ICON_BASE_URL + encodeURIComponent(filename);
 }
 
-/** GitHub API でアイコンファイル一覧を取得
- *  _n なしを五十音順、_n ありを五十音順の順に並べる */
-async function fetchIconFileList() {
-  try {
-    const res = await fetch(GITHUB_API_URL);
-    if (!res.ok) throw new Error("API error: " + res.status);
-    const json = await res.json();
-    const files = json
-      .filter(f => f.type === "file" && /\.(png|jpg|jpeg|webp|gif)$/i.test(f.name))
-      .map(f => ({ filename: f.name, folder: "students" }));
-
-    const main = files.filter(e => !isSubIcon(e.filename))
-                      .sort((a, b) => a.filename.localeCompare(b.filename, "ja"));
-    const sub  = files.filter(e =>  isSubIcon(e.filename))
-                      .sort((a, b) => a.filename.localeCompare(b.filename, "ja"));
-
-    allIconFiles = [...main, ...sub];
-  } catch (e) {
-    console.warn("アイコン一覧の取得に失敗しました:", e);
-    allIconFiles = [];
-  }
-}
-
-/** ファイル名から _n を除いた正規化キーを返す
- *  例: "ミスズ_n.png" → "ミスズ.png"、"tsubaki.png" → "tsubaki.png" */
-function normalizeIconKey(filename) {
-  return filename.replace(/_n(\.[^.]+)$/i, "$1");
-}
-
-/** 画像を非同期でプリロード（キャッシュ済みなら即返す）
- *  entry は {filename, folder} または後方互換のためのファイル名文字列 */
+/** 画像を非同期でプリロード（キャッシュ済みなら即返す）*/
 function loadIconImage(entry) {
   const filename = typeof entry === "string" ? entry : entry.filename;
-  const key = normalizeIconKey(filename); // キャッシュキーは正規化済み
-  if (iconImageCache[key]) return iconImageCache[key];
+  if (iconImageCache[filename]) return iconImageCache[filename];
   const img = new Image();
   img.src = iconSrc(entry);
   img.onload  = () => redraw();
   img.onerror = () => {};
-  iconImageCache[key] = img;
+  iconImageCache[filename] = img;
   return img;
 }
 
-/** ファイル名（_nあり・なし問わず）からエントリを逆引き
- *  正規化キーで照合するので、リネーム前後どちらでも一致する */
+/** ファイル名からエントリを逆引き */
 function findIconEntry(filename) {
-  const key = normalizeIconKey(filename);
-  return allIconFiles.find(e => normalizeIconKey(e.filename) === key)
+  return allIconFiles.find(e => e.filename === filename)
       || { filename, folder: "students" };
 }
 
@@ -2497,8 +2475,7 @@ function renderIconGrid(filter) {
 
     const label = document.createElement("div");
     label.className = "icon-label";
-    // 表示名：拡張子を除き、さらに末尾の _n も除く
-    label.textContent = entry.filename.replace(/\.[^.]+$/, "").replace(/_n$/, "");
+    label.textContent = entry.filename.replace(/\.[^.]+$/, "");
     label.title = entry.filename;
 
     cell.appendChild(img);
@@ -2817,13 +2794,11 @@ function getCurrentCoordinates() {
     return p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: 0, y: 0 };
   });
 
-  // アイコン割り当て：ファイル名を正規化キーで保存
+  // アイコン割り当てをそのままコピー
   const icons = {};
   Object.entries(iconAssignments).forEach(([k, v]) => {
     if (!v) return;
-    const folder   = typeof v === "string" ? "students" : v.folder;
-    const filename = normalizeIconKey(typeof v === "string" ? v : v.filename);
-    icons[k] = { filename, folder };
+    icons[k] = typeof v === "string" ? { filename: v, folder: "students" } : v;
   });
 
   return { red: redArr, blue: blueArr, icons };
@@ -2900,12 +2875,11 @@ function generateShareUrl() {
 
   // アイコン割り当てをコンパクトにシリアライズ
   // 形式: I,red_1:folder/filename|blue_2:folder/filename
-  // ファイル名は _n を除いた正規化キーで保存し、リネーム前後で互換性を保つ
   const iconEntries = Object.entries(iconAssignments)
     .filter(([, v]) => v)
     .map(([k, v]) => {
       const folder   = typeof v === "string" ? "students" : v.folder;
-      const filename = normalizeIconKey(typeof v === "string" ? v : v.filename);
+      const filename = typeof v === "string" ? v : v.filename;
       return `${k}:${folder}/${encodeURIComponent(filename)}`;
     })
     .join("|");
@@ -2969,7 +2943,7 @@ function loadFromUrlHash() {
             const slashIdx = valRaw.indexOf("/");
             if (slashIdx > 0) {
               const filename = decodeURIComponent(valRaw.slice(slashIdx + 1));
-              const entry = findIconEntry(filename); // _nあり・なし両対応
+              const entry = findIconEntry(filename);
               iconAssignments[key] = entry;
               loadIconImage(entry);
             }
