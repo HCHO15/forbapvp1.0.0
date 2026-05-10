@@ -87,10 +87,12 @@
       display: flex;
       align-items: center;
       gap: 1px;
+      width: 100%;
     }
 
     .coord-cell .coord-input {
-      width: 36px;
+      flex: 1;
+      min-width: 40px;
       text-align: center;
       font-size: 11px;
       padding: 1px 2px;
@@ -133,6 +135,33 @@
 
     body.dark-mode .coord-btn:hover:not(:disabled) { background: #555; }
 
+    .icon-table-cell {
+      width: 44px;
+      padding: 1px !important;
+      white-space: nowrap;
+    }
+
+    .icon-table-cell img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      border-radius: 3px;
+      display: block;
+      margin: auto;
+    }
+
+    .icon-table-cell .icon-table-empty {
+      width: 24px;
+      height: 24px;
+      border-radius: 3px;
+      background: #eee;
+      margin: auto;
+    }
+
+    body.dark-mode .icon-table-cell .icon-table-empty {
+      background: #444;
+    }
+
     .right-panel {
       background: #fff;
       padding: 8px;
@@ -146,15 +175,22 @@
       width: 100%;
       margin-bottom: 8px;
       font-size: 12px;
+      table-layout: fixed;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 2px 4px;
       text-align: center;
+      overflow: hidden;
     }
     th {
       background: #f0f0f0;
     }
+    /* 固定幅列 */
+    th:nth-child(1), td:nth-child(1) { width: 20px; }  /* # */
+    th:nth-child(2), td:nth-child(2) { width: 44px; }  /* 生徒 */
+    th:nth-child(5), td:nth-child(5) { width: 32px; }  /* 基準 */
+    /* x・y列は残りを均等に自動配分 */
 
     #rangeControls {
       display: none;
@@ -629,7 +665,7 @@ body.dark-mode .icon-tab.active {
       <div class="table-title">赤点座標</div>
       <table>
         <thead>
-          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
+          <tr><th>#</th><th>生徒</th><th>x</th><th>y</th><th>基準</th></tr>
         </thead>
         <tbody id="redTableBody"></tbody>
       </table>
@@ -637,7 +673,7 @@ body.dark-mode .icon-tab.active {
       <div class="table-title">青点座標</div>
       <table>
         <thead>
-          <tr><th>#</th><th>x</th><th>y</th><th>基準</th></tr>
+          <tr><th>#</th><th>生徒</th><th>x</th><th>y</th><th>基準</th></tr>
         </thead>
         <tbody id="blueTableBody"></tbody>
       </table>
@@ -1134,6 +1170,7 @@ function initTables() {
     const redRow = document.createElement("tr");
     redRow.innerHTML = `
       <td>${i}</td>
+      <td class="icon-table-cell" id="iconCell_red_${i}"></td>
       ${makeCoordCell("red", i, "x")}
       ${makeCoordCell("red", i, "y")}
       <td><input type="radio" name="redBase" data-color="red" data-id="${i}"></td>
@@ -1143,6 +1180,7 @@ function initTables() {
     const blueRow = document.createElement("tr");
     blueRow.innerHTML = `
       <td>${i}</td>
+      <td class="icon-table-cell" id="iconCell_blue_${i}"></td>
       ${makeCoordCell("blue", i, "x")}
       ${makeCoordCell("blue", i, "y")}
       <td><input type="radio" name="blueBase" data-color="blue" data-id="${i}"></td>
@@ -1207,9 +1245,12 @@ function onCoordInputChange(e) {
 }
 
 function updateTablesFromPoints() {
-  // 全inputをクリア、全ボタンをdisabledに
+  // 全inputをクリア、全ボタンをdisabledに、全アイコンセルをリセット
   document.querySelectorAll(".coord-input").forEach(i => { i.value = ""; });
   document.querySelectorAll(".coord-btn").forEach(b => { b.disabled = true; });
+  document.querySelectorAll(".icon-table-cell").forEach(cell => {
+    cell.innerHTML = '<div class="icon-table-empty"></div>';
+  });
 
   const all = [...redPoints, ...bluePoints];
 
@@ -1224,10 +1265,27 @@ function updateTablesFromPoints() {
     if (xInput) xInput.value = Math.round(p.x);
     if (yInput) yInput.value = Math.round(p.y);
 
-    // その点の▲▼ボタンを有効化
+    // ▲▼ボタンを有効化
     document.querySelectorAll(
       `.coord-btn[data-color="${p.color}"][data-id="${p.id}"]`
     ).forEach(b => { b.disabled = false; });
+
+    // アイコンセルを更新
+    const key = `${p.color}_${p.id}`;
+    const entry = iconAssignments[key];
+    const cell = document.getElementById(`iconCell_${key}`);
+    if (cell) {
+      if (entry) {
+        const img = document.createElement("img");
+        img.src = iconSrc(entry);
+        img.alt = typeof entry === "string" ? entry : entry.filename;
+        img.title = img.alt.replace(/\.[^.]+$/, "");
+        cell.innerHTML = "";
+        cell.appendChild(img);
+      } else {
+        cell.innerHTML = '<div class="icon-table-empty"></div>';
+      }
+    }
   });
 }
 
@@ -2656,6 +2714,7 @@ function renderIconGrid(filter) {
       if (iconTargetPoint) {
         delete iconAssignments[`${iconTargetPoint.color}_${iconTargetPoint.id}`];
         redraw();
+        updateTablesFromPoints();
       }
       closeIconModal();
     });
@@ -2750,6 +2809,7 @@ function renderIconGrid(filter) {
         loadIconImage(entry);
         addToRecent(entry.filename);
         redraw();
+        updateTablesFromPoints();
       }
       closeIconModal();
     });
