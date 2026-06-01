@@ -5,6 +5,46 @@
   <title>ホル式戦術対抗戦マップ　-シッテムの箱- - forbapvp1.0.0</title>
 
   <style>
+/* 移行警告モーダル（強制） */
+#migrationOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 999999; /* 最前面 */
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto; /* 背景操作を完全ブロック */
+}
+
+#migrationModal {
+  background: #fff;
+  padding: 22px;
+  border-radius: 8px;
+  width: 360px;
+  max-width: 90%;
+  box-shadow: 0 0 12px rgba(0,0,0,0.35);
+  font-size: 14px;
+  text-align: left;
+}
+
+#migrationModal h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+#migrationModal a {
+  color: #1e88e5;
+  word-break: break-all;
+}
+
+/* ダークモード対応 */
+body.dark-mode #migrationModal {
+  background: #222;
+  color: #eee;
+}
+
+    
     body {
       font-family: system-ui, sans-serif;
       margin: 0;
@@ -3652,8 +3692,35 @@ function resizeCanvasForMobile() {
 
 window.addEventListener("resize", resizeCanvasForMobile);
 resizeCanvasForMobile();
-  
+
+  function showMigrationModal() {
+  const overlay = document.getElementById("migrationOverlay");
+  overlay.style.display = "flex";
+
+  // 背景のスクロールも完全に禁止
+  document.body.style.overflow = "hidden";
+}
+
+// ページ読み込み時に強制表示
+window.addEventListener("load", () => {
+  showMigrationModal();
+});
+
 </script>
+<div id="migrationOverlay">
+  <div id="migrationModal">
+    <h3>お知らせ</h3>
+    <p>このツールは以下のページに移行しました。</p>
+    <p>
+      <a href="https://hcho15.github.io/pvpmap/" target="_blank" rel="noopener">
+        https://hcho15.github.io/pvpmap/
+      </a>
+    </p>
+    <p style="margin-top: 12px; font-size: 12px; opacity: 0.8;">
+      新しいページを開いてご利用ください。
+    </p>
+  </div>
+</div>
   
 </body>
 </html>
